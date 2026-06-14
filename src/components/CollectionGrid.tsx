@@ -1,19 +1,9 @@
-import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
 import type { Doc } from '../../convex/_generated/dataModel'
 import { CardTile, cardEstimate } from './CardTile'
-
-export type GridSize = 'sm' | 'md' | 'lg'
 
 export interface CollectionItem {
   entry: Doc<'cardEntries'>
   card: Doc<'cards'> | null
-}
-
-const cols: Record<GridSize, string> = {
-  sm: 'grid-cols-4 sm:grid-cols-6',
-  md: 'grid-cols-3 sm:grid-cols-4',
-  lg: 'grid-cols-2 sm:grid-cols-3',
 }
 
 const eur = (n: number) =>
@@ -30,11 +20,10 @@ function groupBySet(items: Array<CollectionItem>): Array<Group> {
   const map = new Map<string, Group>()
   for (const it of items) {
     if (!it.card) continue
-    const key = it.card.setId
-    let g = map.get(key)
+    let g = map.get(it.card.setId)
     if (!g) {
-      g = { setId: key, setName: it.card.setName ?? key, items: [], total: 0 }
-      map.set(key, g)
+      g = { setId: it.card.setId, setName: it.card.setName ?? it.card.setId, items: [], total: 0 }
+      map.set(it.card.setId, g)
     }
     g.items.push({ entry: it.entry, card: it.card })
     const est = cardEstimate(it.card)
@@ -43,13 +32,9 @@ function groupBySet(items: Array<CollectionItem>): Array<Group> {
   return [...map.values()].sort((a, b) => b.total - a.total)
 }
 
-export function CollectionGrid({
-  items,
-  size,
-}: {
-  items: Array<CollectionItem>
-  size: GridSize
-}) {
+/** Grille groupée par collection : bandeau (nom + nb de cartes + valeur) puis
+ *  la grille des cartes dessous. */
+export function CollectionGrid({ items }: { items: Array<CollectionItem> }) {
   const groups = groupBySet(items)
   if (groups.length === 0) {
     return (
@@ -59,42 +44,23 @@ export function CollectionGrid({
     )
   }
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {groups.map((g) => (
-        <SetGroup key={g.setId} group={g} size={size} />
+        <section key={g.setId} className="space-y-3">
+          <div className="rounded-xl border border-border bg-secondary px-4 py-2.5">
+            <div className="font-display font-bold">{g.setName}</div>
+            <div className="text-xs text-muted-foreground">
+              {g.items.length} {g.items.length > 1 ? 'cartes' : 'carte'}
+              {g.total > 0 && <span className="ml-1.5 font-semibold text-ink">{eur(g.total)}</span>}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {g.items.map(({ entry, card }) => (
+              <CardTile key={entry._id} card={card} quantity={entry.quantity} />
+            ))}
+          </div>
+        </section>
       ))}
     </div>
-  )
-}
-
-function SetGroup({ group, size }: { group: Group; size: GridSize }) {
-  const [open, setOpen] = useState(true)
-  return (
-    <section>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left shadow-sm"
-      >
-        <div className="min-w-0">
-          <div className="truncate font-display text-base font-bold">{group.setName}</div>
-          <div className="text-xs text-muted-foreground">
-            {group.items.length} {group.items.length > 1 ? 'cartes' : 'carte'}
-            {group.total > 0 && (
-              <span className="ml-1.5 font-semibold text-ink">{eur(group.total)}</span>
-            )}
-          </div>
-        </div>
-        <ChevronDown
-          className={`size-5 shrink-0 text-muted-foreground transition-transform ${open ? '' : '-rotate-90'}`}
-        />
-      </button>
-      {open && (
-        <div className={`mt-3 grid gap-3 ${cols[size]}`}>
-          {group.items.map(({ entry, card }) => (
-            <CardTile key={entry._id} card={card} quantity={entry.quantity} />
-          ))}
-        </div>
-      )}
-    </section>
   )
 }

@@ -113,4 +113,15 @@ export default defineSchema({
     .index("by_pokedex", ["pokedexId"])
     .index("by_user", ["userId"])
     .index("by_pokedex_and_card", ["pokedexId", "cardId"]),
+
+  // ─────────────────────────────────────────────────────────────
+  // SNAPSHOTS DE VALEUR — historique de l'estimation totale d'un pokédex
+  // (1 point par jour), pour le graphe d'évolution du portefeuille.
+  // ─────────────────────────────────────────────────────────────
+  valueSnapshots: defineTable({
+    userId: v.id("users"),
+    pokedexId: v.id("pokedexes"),
+    at: v.number(),
+    totalEur: v.number(),
+  }).index("by_pokedex", ["pokedexId"]),
 });

@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useAction, useQuery } from 'convex/react'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { RefreshCw, Sparkles } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { CollectionGrid } from '../components/CollectionGrid'
-import type { GridSize } from '../components/CollectionGrid'
 import { cardEstimate } from '../components/CardTile'
+import { PortfolioPanel } from '../components/PortfolioPanel'
+import type { TopCard } from '../components/PortfolioPanel'
 
 export const Route = createFileRoute('/')({ component: Collection })
 
@@ -21,11 +22,6 @@ const LANGS: Array<{ id: Lang; label: string }> = [
   { id: 'en', label: '🇬🇧 EN' },
   { id: 'jp', label: '🇯🇵 JP' },
 ]
-const SIZES: Array<{ id: GridSize; label: string }> = [
-  { id: 'sm', label: 'Petit' },
-  { id: 'md', label: 'Moyen' },
-  { id: 'lg', label: 'Grand' },
-]
 
 const seg = 'rounded-full py-2 text-sm font-medium text-gray transition'
 const segOn = 'rounded-full bg-white py-2 text-sm font-semibold text-ink shadow-sm'
@@ -34,16 +30,41 @@ function Collection() {
   const pokedexes = useQuery(api.pokedexes.list)
   const [selected, setSelected] = useState<Id<'pokedexes'> | null>(null)
   const [lang, setLang] = useState<Lang>('all')
-  const [size, setSize] = useState<GridSize>('md')
 
   const activeId = selected ?? pokedexes?.[0]?._id ?? null
   const view = useQuery(api.cardEntries.pokedexView, activeId ? { pokedexId: activeId } : 'skip')
+  const history = useQuery(api.portfolio.history, activeId ? { pokedexId: activeId } : 'skip') ?? []
   const refresh = useAction(api.prices.refreshPokedex)
   const ensurePrices = useAction(api.prices.ensurePrices)
+  const recordSnapshot = useMutation(api.portfolio.recordSnapshot)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Enrichissement paresseux : tarifie (et cache) les cartes possédées sans
-  // prix, par lots, jusqu'à ce que tout soit couvert. Débounce, sans re-demande.
+  const items = useMemo(() => {
+    const all = view?.items ?? []
+    return lang === 'all' ? all : all.filter((i) => i.entry.language === lang)
+  }, [view, lang])
+
+  const stats = useMemo(() => {
+    let total = 0
+    for (const { entry, card } of items) {
+      const est = card ? cardEstimate(card) : null
+      if (est !== null) total += est * entry.quantity
+    }
+    return { count: items.length, total }
+  }, [items])
+
+  // Top 4 cartes les plus chères du pokédex (toutes langues).
+  const top4 = useMemo<Array<TopCard>>(() => {
+    const arr: Array<TopCard> = []
+    for (const { card } of view?.items ?? []) {
+      const est = card ? cardEstimate(card) : null
+      if (card && est !== null) arr.push({ card, est })
+    }
+    arr.sort((a, b) => b.est - a.est)
+    return arr.slice(0, 4)
+  }, [view])
+
+  // Enrichissement paresseux des prix des cartes possédées.
   const requestedRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     const all = view?.items ?? []
@@ -62,19 +83,16 @@ function Collection() {
     return () => clearTimeout(t)
   }, [view, ensurePrices])
 
-  const items = useMemo(() => {
-    const all = view?.items ?? []
-    return lang === 'all' ? all : all.filter((i) => i.entry.language === lang)
-  }, [view, lang])
-
-  const stats = useMemo(() => {
-    let total = 0
-    for (const { entry, card } of items) {
-      const est = card ? cardEstimate(card) : null
-      if (est !== null) total += est * entry.quantity
-    }
-    return { count: items.length, total }
-  }, [items])
+  // Snapshot quotidien de la valeur (débounce, une fois par pokédex/session).
+  const recordedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!activeId || view === undefined || recordedRef.current.has(activeId)) return
+    const t = setTimeout(() => {
+      recordedRef.current.add(activeId)
+      void recordSnapshot({ pokedexId: activeId })
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [activeId, view, recordSnapshot])
 
   async function handleRefresh() {
     if (!activeId) return
@@ -141,41 +159,40 @@ function Collection() {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
-        <div>
-          <p className="text-sm">
-            <span className="font-display text-xl font-extrabold">{stats.count}</span>{' '}
-            {stats.count > 1 ? 'cartes' : 'carte'} dans votre collection
-          </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Estimation totale ·{' '}
-            <span className="font-semibold text-ink">{eur(stats.total)}</span>
-          </p>
+      {/* Stats en deux colonnes : infos + portefeuille */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5">
+          <div>
+            <p className="text-sm">
+              <span className="font-display text-2xl font-extrabold">{stats.count}</span>{' '}
+              {stats.count > 1 ? 'cartes' : 'carte'} dans votre collection
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Estimation totale ·{' '}
+              <span className="font-display text-xl font-extrabold text-ink">
+                {eur(stats.total)}
+              </span>
+            </p>
+          </div>
+          {view && view.items.length > 0 && (
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex w-fit items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-semibold transition hover:bg-muted disabled:opacity-50"
+            >
+              <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Mise à jour…' : 'Rafraîchir les prix'}
+            </button>
+          )}
         </div>
-        {view && view.lastPriceUpdate > 0 && (
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-semibold transition hover:bg-muted disabled:opacity-50"
-          >
-            <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Mise à jour…' : 'Rafraîchir les prix'}
-          </button>
-        )}
-      </div>
 
-      <div className="grid grid-cols-3 gap-1 rounded-full bg-secondary p-1">
-        {SIZES.map((s) => (
-          <button key={s.id} onClick={() => setSize(s.id)} className={size === s.id ? segOn : seg}>
-            {s.label}
-          </button>
-        ))}
+        <PortfolioPanel history={history} top4={top4} />
       </div>
 
       {view === undefined ? (
         <p className="py-16 text-center text-muted-foreground">Chargement…</p>
       ) : (
-        <CollectionGrid items={items} size={size} />
+        <CollectionGrid items={items} />
       )}
     </div>
   )

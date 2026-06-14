@@ -17,6 +17,7 @@ import type * as http from "../http.js";
 import type * as model_prices from "../model/prices.js";
 import type * as model_value from "../model/value.js";
 import type * as pokedexes from "../pokedexes.js";
+import type * as portfolio from "../portfolio.js";
 import type * as prices from "../prices.js";
 import type * as providers_tcgdex from "../providers/tcgdex.js";
 import type * as providers_tcgdexMapping from "../providers/tcgdexMapping.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   "model/prices": typeof model_prices;
   "model/value": typeof model_value;
   pokedexes: typeof pokedexes;
+  portfolio: typeof portfolio;
   prices: typeof prices;
   "providers/tcgdex": typeof providers_tcgdex;
   "providers/tcgdexMapping": typeof providers_tcgdexMapping;
