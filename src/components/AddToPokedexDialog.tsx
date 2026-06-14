@@ -85,21 +85,27 @@ export function AddToPokedexDialog({
 
         <div className="grid gap-8 sm:grid-cols-[430px_1fr]">
           {/* Carte à gauche — au moins 600px de haut sur desktop */}
-          <div className="space-y-3">
+          <div>
             <div className="holo mx-auto aspect-[63/88] w-56 overflow-hidden rounded-xl bg-surface-2 shadow-md sm:aspect-auto sm:h-[600px] sm:w-full">
               <CardImage src={card.imageUrl} alt={label} />
             </div>
-            <div className="rounded-xl bg-secondary p-3 text-center">
-              <div className="text-xs text-muted-foreground">{card.setName ?? card.setId} · #{card.localId}</div>
-              <div className="mt-1 text-xs text-muted-foreground">Estimation</div>
-              <div className="font-display text-2xl font-extrabold">
-                {price !== null ? eur(price) : '—'}
-              </div>
-            </div>
           </div>
 
-          {/* Infos à droite */}
+          {/* Infos + estimation à droite */}
           <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+              <span className="text-sm text-muted-foreground">
+                {card.setName ?? card.setId} · #{card.localId}
+              </span>
+              <span className="text-right">
+                <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Estimation
+                </span>
+                <span className="font-display text-2xl font-extrabold">
+                  {price !== null ? eur(price) : '—'}
+                </span>
+              </span>
+            </div>
             <div className="space-y-2">
               <Label>Classeur</Label>
               <Select value={pokedexId} onValueChange={setPokedexId}>
