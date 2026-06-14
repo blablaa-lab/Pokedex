@@ -23,6 +23,7 @@ import type * as providers_tcgdexMapping from "../providers/tcgdexMapping.js";
 import type * as providers_types from "../providers/types.js";
 import type * as scan from "../scan.js";
 import type * as seed from "../seed.js";
+import type * as sets from "../sets.js";
 import type * as users from "../users.js";
 
 import type {
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   "providers/types": typeof providers_types;
   scan: typeof scan;
   seed: typeof seed;
+  sets: typeof sets;
   users: typeof users;
 }>;
 

@@ -1,32 +1,13 @@
-import { Link } from '@tanstack/react-router'
-import { Search, Camera } from 'lucide-react'
-import { useScan } from '../lib/scan-context'
+import { SearchBox } from './SearchBox'
 import { ProfileMenu } from './ProfileMenu'
 
-/** Barre supérieure persistante façon Pinterest : grosse pilule de recherche
- *  + icône objectif (= scan). */
+/** Barre supérieure persistante façon Pinterest : recherche avec
+ *  autocomplétion + icône scan, et menu profil à droite. */
 export function TopBar() {
-  const { openScan } = useScan()
   return (
     <header className="sticky top-0 z-30 bg-white/92 backdrop-blur-md">
       <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
-        <div className="flex h-11 flex-1 items-center rounded-full bg-secondary pl-4 pr-1 transition focus-within:bg-muted">
-          <Search className="size-5 shrink-0 text-gray" />
-          <Link
-            to="/search"
-            className="flex-1 truncate px-3 text-[15px] text-gray"
-          >
-            Rechercher une carte
-          </Link>
-          <button
-            onClick={openScan}
-            aria-label="Scanner une carte"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-ink transition hover:bg-white"
-          >
-            <Camera className="size-5" />
-          </button>
-        </div>
-
+        <SearchBox />
         <ProfileMenu />
       </div>
     </header>

@@ -55,4 +55,6 @@ export interface CardProvider {
   fetchCard: (
     tcgdexId: string,
   ) => Promise<{ card: ProviderCard; price: ProviderPrice | null } | null>;
+  /** Date de sortie d'un set (ISO) — pour le filtre Année. */
+  fetchSetReleaseDate: (setId: string) => Promise<string | null>;
 }

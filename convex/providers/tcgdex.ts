@@ -163,4 +163,12 @@ export class TcgdexProvider implements CardProvider {
     const price = mapCardmarketPrice(base.pricing?.cardmarket, Date.now());
     return { card, price };
   }
+
+  /** Date de sortie d'un set (depuis le détail TCGdex). */
+  async fetchSetReleaseDate(setId: string): Promise<string | null> {
+    const set = await fetchJson<{ releaseDate?: string }>(
+      `${BASE}/fr/sets/${setId}`,
+    ).catch(() => null);
+    return set?.releaseDate ?? null;
+  }
 }
