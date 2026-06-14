@@ -11,8 +11,8 @@ const activeProps = { className: 'bg-ink text-white hover:bg-ink' }
 export function LeftRail() {
   const { openScan } = useScan()
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col items-center border-r border-border bg-white py-4 lg:flex">
-      <nav className="mt-2 flex flex-col items-center gap-2">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col items-center border-r border-border bg-white pb-4 pt-2.5 lg:flex">
+      <nav className="flex flex-col items-center gap-2">
         <Link to="/" className={link} activeOptions={{ exact: true }} activeProps={activeProps} aria-label="Collection">
           <Home className="size-6" />
         </Link>
