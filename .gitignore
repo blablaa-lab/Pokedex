@@ -5,11 +5,14 @@ node_modules/
 
 # Builds / output
 dist/
+dist-ssr/
 build/
 .output/
 .vinxi/
 .tanstack/
 .nitro/
+.wrangler/
+__unconfig*
 
 # Convex
 .convex/

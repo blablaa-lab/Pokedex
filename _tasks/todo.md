@@ -7,7 +7,7 @@
 - [ ] ⛔ **STOP — attente validation utilisateur du verdict avant de poursuivre**
 
 ## Phase A — MVP sans scan (après validation)
-- [ ] **P1 — Scaffold** : TanStack Start + Convex + Convex Auth + Tailwind/shadcn + Vitest/convex-test. Vérifier maturité Convex Auth.
+- [x] **P1 — Scaffold** : TanStack Start + Convex + Convex Auth + Tailwind/shadcn + Vitest/convex-test câblés. Maturité Convex Auth vérifiée (pré-1.0, on continue). 4 portes vertes (typecheck/test/build/lint). ⚠️ `npx convex dev` (login) requis pour provisionner le déploiement.
 - [ ] **P2 — Données & provider** : `schema.ts` en place, `cardProvider` (interface stable, TCGdex source unique), seed script `cards`+`sets` (FR+EN, `searchText`).
 - [ ] **P3 — Pokédex CRUD** : multi-pokédex/user + tests de sécurité (isolation par `userId`).
 - [ ] **P4 — Recherche** : index `search_text`, match FR ET EN, filtre set + `localId`. Test « Charizard »=« Dracaufeu ».

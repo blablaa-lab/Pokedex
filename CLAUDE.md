@@ -60,3 +60,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Simplicité avant tout** : Rendre chaque changement aussi simple que possible. Impacter le moins de code possible.
 - **Pas de paresse** : Trouver les causes profondes. Pas de correctifs temporaires. Standards développeur senior.
 - **Impact minimal** : Les modifications ne doivent toucher que le strict nécessaire. Éviter d'introduire de nouveaux bugs.
+
+---
+
+## Stack & Commandes (PokéDex Scanner)
+
+**Stack** : TanStack Start (Router) · Convex (DB/fonctions/cron/file storage) · Convex Auth (`@convex-dev/auth`, email+mdp) · Tailwind v4 + shadcn/ui · Vitest + convex-test · ESLint + Prettier.
+
+**Spécs de référence** : `_docs/prd.md` (produit, phases, critères §10) et `_docs/schema.ts` (modèle de données, fait autorité). Journal des décisions : `DECISIONS.md`. Verdict prix : **CAS A** (TCGdex source unique).
+
+**Commandes** :
+
+| But | Commande |
+|---|---|
+| Dev front | `npm run dev` (port 3000) |
+| Dev backend Convex (login requis) | `npm run convex:dev` |
+| Régénérer types Convex | `npm run convex:codegen` (exige `CONVEX_DEPLOYMENT`) |
+| Tests (logique métier) | `npm test` |
+| Typecheck | `npm run typecheck` |
+| Lint / format | `npm run lint` · `npm run format` |
+| Build prod | `npm run build` |
+
+**Conventions** :
+- ⚠️ Cache npm perso cassé (root-owned) → installer avec `npm install --cache /tmp/npm-cache-pkdx`.
+- Tout accès aux sources externes (TCGdex) passe **obligatoirement** par l'abstraction `cardProvider` (à créer en P2). Jamais d'appel API externe côté client → toujours via une **action** Convex.
+- Toute query/mutation filtre sur le `userId` issu de l'auth (isolation par user, testée).
+- Les prix ne sont **jamais** seedés : remplis paresseusement via `refreshPrices` (P6).
+- Tests via `convex-test` (environnement `edge-runtime`, en process, sans déploiement) ; config dans `vitest.config.ts`.

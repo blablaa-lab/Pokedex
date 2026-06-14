@@ -64,6 +64,31 @@ L'API TCGdex expose un bloc `pricing.cardmarket` en **EUR** au niveau racine de 
 
 ---
 
-## Stack & maturité (à confirmer en P1)
+## P1 — Scaffold ✅
 
-- _En attente du scaffold P1 : vérifier la maturité de Convex Auth (repli Clerk documenté si bloquant, PRD §9) avant de poursuivre._
+**Date : 2026-06-14.** Scaffold via `create-start-app` (add-ons `convex` + `shadcn`), puis câblage manuel de Convex Auth + convex-test.
+
+### Versions retenues (relevées sur le registre npm)
+- TanStack Start 1.168 / Router 1.170 — stable.
+- Vite **8** · Tailwind **4** · React 19 — récents mais le scaffold officiel les version-matche (config non écrite à la main).
+- convex 1.41 · `@convex-dev/react-query` 0.1 (intégration Convex côté client).
+- `@convex-dev/auth` **0.0.94** · convex-test **0.0.53** · `@edge-runtime/vm` 5.0.
+
+### Maturité Convex Auth — verdict : **on continue, pas de bascule Clerk**
+- `@convex-dev/auth` reste en **pré-1.0** (0.0.94) et tire une dépendance dépréciée (`lucia@3.2.2`). Risque noté.
+- **Non bloquant pour P1** : le câblage (provider `ConvexAuthProvider`, `convex/auth.ts` provider Password, `convex/http.ts`, `convex/auth.config.ts`) est en place et compile. La validation runtime de l'auth (flux inscription/connexion) se fera en **P3** une fois le déploiement Convex provisionné.
+- Repli Clerk documenté (PRD §9) si l'auth s'avère bloquante en P3 — **ne pas basculer sans accord explicite**.
+
+### Frontière de P1 : le déploiement Convex nécessite le login utilisateur
+- `convex codegen` et `convex dev` exigent un `CONVEX_DEPLOYMENT` → **action manuelle requise** : `npx convex dev` (login Convex), qui provisionne le déploiement, régénère `convex/_generated/` contre le schéma autoritaire, et renseigne `VITE_CONVEX_URL`/`CONVEX_DEPLOYMENT` dans `.env.local`.
+- En attendant, `convex/_generated/` est celui du scaffold (démo) ; aucun code applicatif ne l'importe encore, donc typecheck/build/test restent verts. Il sera régénéré au premier `convex dev`.
+- Le provider Convex est **tolérant à l'absence de `VITE_CONVEX_URL`** (rend les routes sans provider + warning) → pas de crash SSR au build/dev tant que le déploiement n'est pas configuré.
+
+### Portes de sortie P1 — toutes vertes (offline, sans déploiement)
+- `npm run typecheck` ✅ · `npm test` (smoke convex-test : insert + relecture d'une carte) ✅ · `npm run build` (SSR + client + Nitro) ✅ · `npm run lint` ✅.
+
+### Écarts / nettoyage
+- Démo retirée : `convex/todos.ts` + tables `products`/`todos` du schéma (remplacé par le schéma autoritaire).
+- `vitest.config.ts` dédié (n'hérite pas des plugins de `vite.config.ts`), environnement `edge-runtime` pour convex-test.
+- ESLint ignore `.output/`, `.nitro/`, `dist/`, `convex/_generated/` (fichiers générés/build).
+- Cache npm perso root-owned → installs via `--cache /tmp/npm-cache-pkdx`.
