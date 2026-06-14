@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
-import { Search as SearchIcon, Check } from 'lucide-react'
+import { Search as SearchIcon, Camera, Check } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Doc } from '../../convex/_generated/dataModel'
 import { CardTile } from '../components/CardTile'
 import { AddToPokedexDialog } from '../components/AddToPokedexDialog'
+import { useScan } from '../lib/scan-context'
 
 export const Route = createFileRoute('/search')({ component: SearchPage })
 
@@ -17,6 +18,7 @@ const MODES: Array<{ id: Mode; label: string }> = [
 ]
 
 function SearchPage() {
+  const { openScan } = useScan()
   const [q, setQ] = useState('')
   const [mode, setMode] = useState<Mode>('nom')
   const [exact, setExact] = useState(false)
@@ -46,8 +48,15 @@ function SearchPage() {
           onChange={(e) => setQ(e.target.value)}
           inputMode={mode === 'numero' ? 'numeric' : 'text'}
           placeholder={mode === 'numero' ? 'Numéro de collecteur, ex. 25' : 'Rechercher une carte'}
-          className="h-12 w-full rounded-full bg-secondary pl-12 pr-5 text-[15px] outline-none transition placeholder:text-gray focus:bg-muted focus:ring-2 focus:ring-ink/10"
+          className="h-12 w-full rounded-full bg-secondary pl-12 pr-14 text-[15px] outline-none transition placeholder:text-gray focus:bg-muted focus:ring-2 focus:ring-ink/10"
         />
+        <button
+          onClick={openScan}
+          aria-label="Scanner une carte"
+          className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-ink transition hover:bg-white"
+        >
+          <Camera className="size-5" />
+        </button>
       </div>
 
       {/* Onglets de filtre (texte simple, façon Pinterest) */}
