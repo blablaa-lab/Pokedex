@@ -101,3 +101,12 @@ L'API TCGdex expose un bloc `pricing.cardmarket` en **EUR** au niveau racine de 
 - `vitest.config.ts` dédié (n'hérite pas des plugins de `vite.config.ts`), environnement `edge-runtime` pour convex-test.
 - ESLint ignore `.output/`, `.nitro/`, `dist/`, `convex/_generated/` (fichiers générés/build).
 - Cache npm perso root-owned → installs via `--cache /tmp/npm-cache-pkdx`.
+
+---
+
+## P2 — Données & provider ✅ (2026-06-14)
+
+- **Abstraction `cardProvider`** (PRD §2) : interface stable `CardProvider` (`convex/providers/types.ts`) + impl `TcgdexProvider` (`tcgdex.ts`). Mapping pur isolé (`tcgdexMapping.ts`) → **cœur métier testé hors-ligne** (15 tests : `searchText` bilingue, dérivation `setId`, mapping prix EUR sur fixture réelle, jointure FR+EN).
+- **Seed efficace (~22 appels)** : briefs globaux `/fr/cards` + `/en/cards` (noms FR+EN, 21k+), `/fr/sets` (métadonnées), 19 détails de séries (mapping `set→serie` pour construire les URLs d'images `/{lang}/{serie}/{set}/{localId}/high.webp`). `setId` dérivé de l'id. Évite des milliers d'appels par-carte.
+- **Seed exécuté** sur `proficient-salamander-160` : **192 sets, 23 409 cartes**. Identité uniquement — **prix jamais seedés** (PRD §3). Vérifié : `base1-4` = Dracaufeu/Charizard, `searchText` bilingue, image FR, `prices` absent.
+- **`seed:run` = action PUBLIQUE** (la deploy key dev ne peut pas déclencher d'action interne via le CLI — erreur `RunInternalActions`). Idempotente (no-op si déjà seedé ; `{"force":true}` → reset paginé). ⚠️ **À sécuriser / retirer avant prod**.
