@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Search, Camera } from 'lucide-react'
 import { useScan } from '../lib/scan-context'
+import { ProfileMenu } from './ProfileMenu'
 
 /** Barre supérieure persistante façon Pinterest : grosse pilule de recherche
  *  + icône objectif (= scan). */
@@ -33,6 +34,8 @@ export function TopBar() {
             <Camera className="size-5" />
           </button>
         </div>
+
+        <ProfileMenu />
       </div>
     </header>
   )
