@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAction, useQuery } from 'convex/react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { RefreshCw, Sparkles } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
@@ -39,7 +39,28 @@ function Collection() {
   const activeId = selected ?? pokedexes?.[0]?._id ?? null
   const view = useQuery(api.cardEntries.pokedexView, activeId ? { pokedexId: activeId } : 'skip')
   const refresh = useAction(api.prices.refreshPokedex)
+  const ensurePrices = useAction(api.prices.ensurePrices)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Enrichissement paresseux : tarifie (et cache) les cartes possédées sans
+  // prix, par lots, jusqu'à ce que tout soit couvert. Débounce, sans re-demande.
+  const requestedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    const all = view?.items ?? []
+    const missing: Array<Id<'cards'>> = []
+    for (const { card } of all) {
+      if (card && card.prices === undefined && !requestedRef.current.has(card._id)) {
+        missing.push(card._id)
+      }
+      if (missing.length >= 30) break
+    }
+    if (missing.length === 0) return
+    const t = setTimeout(() => {
+      missing.forEach((id) => requestedRef.current.add(id))
+      void ensurePrices({ cardIds: missing })
+    }, 500)
+    return () => clearTimeout(t)
+  }, [view, ensurePrices])
 
   const items = useMemo(() => {
     const all = view?.items ?? []
