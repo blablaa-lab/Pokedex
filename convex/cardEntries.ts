@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { currentUserId, requireUserId } from "./authz";
 import { cardEstimateEur, computeTotalValue, uniqueCardIds } from "./model/value";
 
@@ -91,13 +92,24 @@ export const add = mutation({
       return existing._id;
     }
 
-    return await ctx.db.insert("cardEntries", {
+    const entryId = await ctx.db.insert("cardEntries", {
       pokedexId,
       userId,
       cardId,
       quantity: qty,
       ...attrs,
     });
+
+    // Déclencheur 1 (PRD §6) : si la carte n'a pas encore de prix, on planifie
+    // un refresh (action → appel externe via cardProvider, jamais ici).
+    const card = await ctx.db.get(cardId);
+    if (card !== null && card.prices === undefined) {
+      await ctx.scheduler.runAfter(0, internal.prices.refreshCards, {
+        cardIds: [cardId],
+      });
+    }
+
+    return entryId;
   },
 });
 
