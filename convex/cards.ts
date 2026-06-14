@@ -24,7 +24,7 @@ export const get = query({
   },
 });
 
-const MAX_RESULTS = 60;
+const MAX_RESULTS = 240; // plafond pour le lazy-load au scroll
 
 /**
  * Recherche bilingue sur l'index `search_text` (FR ET EN via `searchText`),

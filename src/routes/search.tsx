@@ -1,12 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAction, useQuery } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search as SearchIcon, Camera, Check, ChevronDown, X } from 'lucide-react'
+import { Check, ChevronDown, X } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Doc } from '../../convex/_generated/dataModel'
 import { CardTile } from '../components/CardTile'
 import { AddToPokedexDialog } from '../components/AddToPokedexDialog'
-import { useScan } from '../lib/scan-context'
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
 import {
   Command,
@@ -28,19 +27,16 @@ const filterBtn =
   'flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition'
 
 function SearchPage() {
-  const { openScan } = useScan()
+  // La recherche est pilotée par le champ du header (→ ?q=). Pas de second champ.
   const { q: urlQ } = Route.useSearch()
-  const [q, setQ] = useState(urlQ ?? '')
   const [exact, setExact] = useState(false)
   const [collection, setCollection] = useState<string | null>(null)
   const [year, setYear] = useState<number | null>(null)
   const [colOpen, setColOpen] = useState(false)
   const [yearOpen, setYearOpen] = useState(false)
   const [addCard, setAddCard] = useState<Doc<'cards'> | null>(null)
-
-  useEffect(() => {
-    if (urlQ !== undefined) setQ(urlQ)
-  }, [urlQ])
+  const [limit, setLimit] = useState(60)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
   const sets = useQuery(api.sets.list)
   const setYearOf = useMemo(() => {
@@ -57,11 +53,10 @@ function SearchPage() {
   )
   const collectionName = sets?.find((s) => s.tcgdexId === collection)?.name
 
-  const term = q.trim()
+  const term = (urlQ ?? '').trim()
   const isNum = /^\d+$/.test(term)
   const active = term !== '' || collection !== null
-  // Auto : un terme numérique cherche par numéro, sinon par nom. Aucun filtre
-  // de portée à sélectionner.
+  // Auto : un terme numérique cherche par numéro, sinon par nom.
   const args = term
     ? isNum
       ? { localId: term, setId: collection ?? undefined }
@@ -70,7 +65,28 @@ function SearchPage() {
       ? { setId: collection }
       : null
 
-  const raw = useQuery(api.cards.search, args ? { ...args, limit: 120 } : 'skip')
+  const raw = useQuery(api.cards.search, args ? { ...args, limit } : 'skip')
+
+  // Lazy-load au scroll : limite relevée par paliers tant qu'il reste des
+  // résultats. Reset quand la requête change.
+  useEffect(() => {
+    setLimit(60)
+  }, [term, collection])
+  const canLoadMore = raw !== undefined && raw.length >= limit && limit < 240
+  useEffect(() => {
+    if (!canLoadMore) return
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setLimit((l) => Math.min(l + 60, 240))
+      },
+      { rootMargin: '800px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [canLoadMore])
+
   const results = useMemo(() => {
     let r = raw ?? undefined
     if (!r) return r
@@ -86,8 +102,18 @@ function SearchPage() {
     return r
   }, [raw, year, setYearOf, exact, term])
 
-  // Enrichissement paresseux des prix : on récupère (et cache) les prix des
-  // résultats visibles qui n'en ont pas encore. Débounce + pas de re-demande.
+  // Groupement par collection (bandeau + cartes), ordre d'apparition préservé.
+  const groups = useMemo(() => {
+    const map = new Map<string, { setId: string; setName: string; cards: Array<Doc<'cards'>> }>()
+    for (const c of results ?? []) {
+      const g = map.get(c.setId) ?? { setId: c.setId, setName: c.setName ?? c.setId, cards: [] }
+      g.cards.push(c)
+      map.set(c.setId, g)
+    }
+    return [...map.values()]
+  }, [results])
+
+  // Enrichissement paresseux des prix des résultats visibles sans prix.
   const ensurePrices = useAction(api.prices.ensurePrices)
   const requestedRef = useRef<Set<string>>(new Set())
   useEffect(() => {
@@ -106,25 +132,6 @@ function SearchPage() {
 
   return (
     <div className="space-y-4">
-      {/* Champ : cherche directement par nom OU numéro */}
-      <div className="relative mx-auto max-w-2xl">
-        <SearchIcon className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-gray" />
-        <input
-          autoFocus
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Rechercher par nom ou numéro de carte"
-          className="h-12 w-full rounded-full bg-secondary pl-12 pr-14 text-[15px] outline-none transition placeholder:text-gray focus:bg-muted focus:ring-2 focus:ring-ink/10"
-        />
-        <button
-          onClick={openScan}
-          aria-label="Scanner une carte"
-          className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-ink transition hover:bg-white"
-        >
-          <Camera className="size-5" />
-        </button>
-      </div>
-
       {/* Filtres combinables : Collection · Année · Exacte */}
       <div className="no-scrollbar -mx-3 flex items-center justify-center gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
         <Popover open={colOpen} onOpenChange={setColOpen}>
@@ -215,20 +222,37 @@ function SearchPage() {
         </button>
       </div>
 
-      {/* Résultats */}
+      {/* Résultats groupés par collection */}
       {!active ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
-          Saisis un nom ou un numéro, ou choisis une collection.
+          Recherche une carte depuis la barre du haut, ou choisis une collection.
         </p>
       ) : results === undefined ? (
         <p className="py-16 text-center text-sm text-muted-foreground">Recherche…</p>
       ) : results.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">Aucun résultat.</p>
       ) : (
-        <div className="masonry">
-          {results.map((card) => (
-            <CardTile key={card._id} card={card} onAdd={() => setAddCard(card)} />
+        <div className="space-y-8">
+          {groups.map((g) => (
+            <section key={g.setId} className="space-y-3">
+              <div className="rounded-xl border border-border bg-secondary px-4 py-2.5">
+                <div className="font-display font-bold">{g.setName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {g.cards.length} {g.cards.length > 1 ? 'cartes' : 'carte'}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                {g.cards.map((card) => (
+                  <CardTile key={card._id} card={card} onAdd={() => setAddCard(card)} />
+                ))}
+              </div>
+            </section>
           ))}
+          {canLoadMore && (
+            <div ref={sentinelRef} className="py-6 text-center text-sm text-muted-foreground">
+              Chargement…
+            </div>
+          )}
         </div>
       )}
 
