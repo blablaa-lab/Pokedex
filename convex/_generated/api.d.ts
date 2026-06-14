@@ -10,8 +10,10 @@
 
 import type * as auth from "../auth.js";
 import type * as authz from "../authz.js";
+import type * as cardEntries from "../cardEntries.js";
 import type * as cards from "../cards.js";
 import type * as http from "../http.js";
+import type * as model_value from "../model/value.js";
 import type * as pokedexes from "../pokedexes.js";
 import type * as providers_tcgdex from "../providers/tcgdex.js";
 import type * as providers_tcgdexMapping from "../providers/tcgdexMapping.js";
@@ -27,8 +29,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authz: typeof authz;
+  cardEntries: typeof cardEntries;
   cards: typeof cards;
   http: typeof http;
+  "model/value": typeof model_value;
   pokedexes: typeof pokedexes;
   "providers/tcgdex": typeof providers_tcgdex;
   "providers/tcgdexMapping": typeof providers_tcgdexMapping;
