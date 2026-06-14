@@ -24,12 +24,6 @@ export const Route = createFileRoute('/search')({
   component: SearchPage,
 })
 
-type Mode = 'nom' | 'numero'
-const MODES: Array<{ id: Mode; label: string }> = [
-  { id: 'nom', label: 'Nom' },
-  { id: 'numero', label: 'Numéro' },
-]
-
 const filterBtn =
   'flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition'
 
@@ -37,7 +31,6 @@ function SearchPage() {
   const { openScan } = useScan()
   const { q: urlQ } = Route.useSearch()
   const [q, setQ] = useState(urlQ ?? '')
-  const [mode, setMode] = useState<Mode>('nom')
   const [exact, setExact] = useState(false)
   const [collection, setCollection] = useState<string | null>(null)
   const [year, setYear] = useState<number | null>(null)
@@ -56,47 +49,53 @@ function SearchPage() {
     return m
   }, [sets])
   const years = useMemo(
-    () => [...new Set((sets ?? []).map((s) => s.year).filter((y): y is number => !!y))].sort((a, b) => b - a),
+    () =>
+      [...new Set((sets ?? []).map((s) => s.year).filter((y): y is number => !!y))].sort(
+        (a, b) => b - a,
+      ),
     [sets],
   )
   const collectionName = sets?.find((s) => s.tcgdexId === collection)?.name
 
   const term = q.trim()
+  const isNum = /^\d+$/.test(term)
   const active = term !== '' || collection !== null
-  const args = !active
-    ? null
-    : mode === 'numero' && term !== ''
+  // Auto : un terme numérique cherche par numéro, sinon par nom. Aucun filtre
+  // de portée à sélectionner.
+  const args = term
+    ? isNum
       ? { localId: term, setId: collection ?? undefined }
-      : term !== ''
-        ? { text: term, setId: collection ?? undefined }
-        : { setId: collection ?? undefined }
+      : { text: term, setId: collection ?? undefined }
+    : collection
+      ? { setId: collection }
+      : null
 
   const raw = useQuery(api.cards.search, args ? { ...args, limit: 120 } : 'skip')
   const results = useMemo(() => {
     let r = raw ?? undefined
     if (!r) return r
     if (year !== null) r = r.filter((c) => setYearOf.get(c.setId) === year)
-    if (exact && mode === 'nom' && term !== '') {
+    if (exact && term !== '') {
       r = r.filter(
         (c) =>
           c.nameFr?.toLowerCase() === term.toLowerCase() ||
-          c.nameEn?.toLowerCase() === term.toLowerCase(),
+          c.nameEn?.toLowerCase() === term.toLowerCase() ||
+          c.localId === term,
       )
     }
     return r
-  }, [raw, year, setYearOf, exact, mode, term])
+  }, [raw, year, setYearOf, exact, term])
 
   return (
     <div className="space-y-4">
-      {/* Champ */}
+      {/* Champ : cherche directement par nom OU numéro */}
       <div className="relative mx-auto max-w-2xl">
         <SearchIcon className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-gray" />
         <input
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          inputMode={mode === 'numero' ? 'numeric' : 'text'}
-          placeholder={mode === 'numero' ? 'Numéro de collecteur, ex. 25' : 'Rechercher une carte'}
+          placeholder="Rechercher par nom ou numéro de carte"
           className="h-12 w-full rounded-full bg-secondary pl-12 pr-14 text-[15px] outline-none transition placeholder:text-gray focus:bg-muted focus:ring-2 focus:ring-ink/10"
         />
         <button
@@ -108,26 +107,8 @@ function SearchPage() {
         </button>
       </div>
 
-      {/* Scope + filtres combinables */}
-      <div className="no-scrollbar -mx-3 flex items-center gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0">
-        {MODES.map((m) => {
-          const on = mode === m.id
-          return (
-            <button
-              key={m.id}
-              onClick={() => setMode(m.id)}
-              className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-                on ? 'bg-ink text-white' : 'text-ink hover:bg-secondary'
-              }`}
-            >
-              {m.label}
-            </button>
-          )
-        })}
-
-        <span className="mx-0.5 h-5 w-px shrink-0 bg-border" />
-
-        {/* Collection */}
+      {/* Filtres combinables : Collection · Année · Exacte */}
+      <div className="no-scrollbar -mx-3 flex items-center justify-center gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
         <Popover open={colOpen} onOpenChange={setColOpen}>
           <PopoverTrigger
             className={`${filterBtn} ${collection ? 'border-ink bg-ink text-white' : 'border-border bg-card text-ink hover:border-ink/30'}`}
@@ -145,7 +126,7 @@ function SearchPage() {
               <ChevronDown className="size-4" />
             )}
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-72 rounded-2xl p-0">
+          <PopoverContent align="center" className="w-72 rounded-2xl p-0">
             <Command>
               <CommandInput placeholder="Filtrer les collections…" />
               <CommandList>
@@ -170,7 +151,6 @@ function SearchPage() {
           </PopoverContent>
         </Popover>
 
-        {/* Année */}
         <Popover open={yearOpen} onOpenChange={setYearOpen}>
           <PopoverTrigger
             className={`${filterBtn} ${year ? 'border-ink bg-ink text-white' : 'border-border bg-card text-ink hover:border-ink/30'}`}
@@ -188,7 +168,7 @@ function SearchPage() {
               <ChevronDown className="size-4" />
             )}
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 rounded-2xl p-2">
+          <PopoverContent align="center" className="w-56 rounded-2xl p-2">
             <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto">
               {years.map((y) => (
                 <button
@@ -208,21 +188,19 @@ function SearchPage() {
           </PopoverContent>
         </Popover>
 
-        {mode === 'nom' && (
-          <button
-            onClick={() => setExact((e) => !e)}
-            className={`${filterBtn} ${exact ? 'border-ink bg-secondary text-ink' : 'border-border bg-card text-ink hover:border-ink/30'}`}
-          >
-            {exact && <Check className="size-4" />}
-            Exacte
-          </button>
-        )}
+        <button
+          onClick={() => setExact((e) => !e)}
+          className={`${filterBtn} ${exact ? 'border-ink bg-ink text-white' : 'border-border bg-card text-ink hover:border-ink/30'}`}
+        >
+          {exact && <Check className="size-4" />}
+          Exacte
+        </button>
       </div>
 
       {/* Résultats */}
       {!active ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
-          Saisis un nom/numéro ou choisis une collection.
+          Saisis un nom ou un numéro, ou choisis une collection.
         </p>
       ) : results === undefined ? (
         <p className="py-16 text-center text-sm text-muted-foreground">Recherche…</p>

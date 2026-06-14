@@ -9,6 +9,7 @@ import { createOcrScanner } from '../scan/ocr'
 import type { OcrScanner } from '../scan/ocr'
 import { parseCollectorNumber } from '../scan/parseCollectorNumber'
 import type { DetectedNumber } from '../scan/parseCollectorNumber'
+import { CardImage } from './CardImage'
 
 type Phase = 'init' | 'scanning' | 'detected' | 'results' | 'denied'
 
@@ -297,9 +298,9 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
                     const est = estimate(c)
                     return (
                       <li key={c._id} className="flex items-center gap-3 rounded-xl bg-white/5 p-2">
-                        {c.imageUrl && (
-                          <img src={c.imageUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" />
-                        )}
+                        <span className="h-14 w-10 shrink-0 overflow-hidden rounded bg-white/10">
+                          <CardImage src={c.imageUrl} alt="" />
+                        </span>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-semibold">{c.nameFr ?? c.nameEn}</div>
                           <div className="text-xs text-white/60">

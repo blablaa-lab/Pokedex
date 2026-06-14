@@ -4,6 +4,7 @@ import { useQuery } from 'convex/react'
 import { Search, Camera, X } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import { useScan } from '../lib/scan-context'
+import { CardImage } from './CardImage'
 
 /** Champ de recherche avec autocomplétion (suggestions de cartes pendant la
  *  frappe) ; valider ouvre la page de résultats /search?q=… */
@@ -94,9 +95,9 @@ export function SearchBox() {
                     onClick={() => go(c.nameFr ?? c.nameEn ?? trimmed)}
                     className="flex w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-secondary"
                   >
-                    {c.imageUrl && (
-                      <img src={c.imageUrl} alt="" className="h-12 w-9 shrink-0 rounded object-cover" />
-                    )}
+                    <span className="h-12 w-9 shrink-0 overflow-hidden rounded bg-surface-2">
+                      <CardImage src={c.imageUrl} alt="" />
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">
                         {c.nameFr ?? c.nameEn}
