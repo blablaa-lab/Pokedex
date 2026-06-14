@@ -87,6 +87,14 @@ L'API TCGdex expose un bloc `pricing.cardmarket` en **EUR** au niveau racine de 
 ### Portes de sortie P1 — toutes vertes (offline, sans déploiement)
 - `npm run typecheck` ✅ · `npm test` (smoke convex-test : insert + relecture d'une carte) ✅ · `npm run build` (SSR + client + Nitro) ✅ · `npm run lint` ✅.
 
+### Déploiement Convex Cloud connecté (2026-06-14)
+- Choix utilisateur : **nouveau projet dédié** `pokedex` (team `werocket-labs`) plutôt que réutiliser le projet existant « Clicc » → séparation propre, aucun risque pour Clicc.
+- Déploiement dev cloud : `upbeat-lark-95` (eu-west-1). Lié via `convex dev --once --configure new` (CLI déjà authentifié).
+- `.env.local` (gitignoré) : `CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`.
+- `convex/_generated/` régénéré contre le schéma autoritaire ; schéma + fonctions auth **poussés et "ready"**.
+- Correctif : `convex/tsconfig.json` → `types: ["node"]` (process.env dans `auth.config.ts`).
+- **Reste pour P3** : initialiser les variables d'env de Convex Auth sur le déploiement (clés JWT / `SITE_URL`) via `npx @convex-dev/auth` avant de câbler le flux inscription/connexion runtime.
+
 ### Écarts / nettoyage
 - Démo retirée : `convex/todos.ts` + tables `products`/`todos` du schéma (remplacé par le schéma autoritaire).
 - `vitest.config.ts` dédié (n'hérite pas des plugins de `vite.config.ts`), environnement `edge-runtime` pour convex-test.
