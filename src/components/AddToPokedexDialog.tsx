@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
-import type { Doc } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from './ui/dialog'
 import {
   Select,
@@ -24,15 +23,20 @@ import {
 
 const CONDITIONS = ['NM', 'MT', 'EX', 'GD', 'LP', 'PL', 'PO'] as const
 const LANGUAGES = ['fr', 'en', 'jp', 'other'] as const
-
 type Condition = (typeof CONDITIONS)[number]
 type Language = (typeof LANGUAGES)[number]
 
-export function AddToPokedexDialog({ card }: { card: Doc<'cards'> }) {
+/** Dialogue d'ajout contrôlé : ouvert quand `card` n'est pas null. */
+export function AddToPokedexDialog({
+  card,
+  onClose,
+}: {
+  card: Doc<'cards'> | null
+  onClose: () => void
+}) {
   const pokedexes = useQuery(api.pokedexes.list)
   const add = useMutation(api.cardEntries.add)
-  const [open, setOpen] = useState(false)
-  const [pokedexId, setPokedexId] = useState<string>('')
+  const [pokedexId, setPokedexId] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [condition, setCondition] = useState<Condition>('NM')
   const [language, setLanguage] = useState<Language>('fr')
@@ -40,16 +44,21 @@ export function AddToPokedexDialog({ card }: { card: Doc<'cards'> }) {
   const [isReverse, setIsReverse] = useState(false)
   const [isFirstEdition, setIsFirstEdition] = useState(false)
 
+  useEffect(() => {
+    if (pokedexes && pokedexes.length > 0 && !pokedexId) setPokedexId(pokedexes[0]._id)
+  }, [pokedexes, pokedexId])
+
+  if (!card) return null
   const label = card.nameFr ?? card.nameEn ?? card.tcgdexId
 
   async function handleAdd() {
     if (!pokedexId) {
-      toast.error('Choisis un pokédex')
+      toast.error('Choisis un classeur')
       return
     }
     await add({
-      pokedexId: pokedexId as Doc<'pokedexes'>['_id'],
-      cardId: card._id,
+      pokedexId: pokedexId as Id<'pokedexes'>,
+      cardId: card!._id,
       quantity,
       condition,
       language,
@@ -58,27 +67,31 @@ export function AddToPokedexDialog({ card }: { card: Doc<'cards'> }) {
       isFirstEdition,
     })
     toast.success(`« ${label} » ajoutée`)
-    setOpen(false)
+    onClose()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="secondary">
-          Ajouter
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-3xl">
         <DialogHeader>
-          <DialogTitle>Ajouter « {label} »</DialogTitle>
+          <DialogTitle className="font-display">Ajouter « {label} »</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="flex gap-3">
+            {card.imageUrl && (
+              <img src={card.imageUrl} alt="" className="h-24 w-[68px] rounded-lg object-cover" />
+            )}
+            <div className="text-sm text-muted-foreground">
+              {card.setName ?? card.setId} · #{card.localId}
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label>Pokédex</Label>
+            <Label>Classeur</Label>
             <Select value={pokedexId} onValueChange={setPokedexId}>
               <SelectTrigger>
-                <SelectValue placeholder="Choisir un pokédex" />
+                <SelectValue placeholder="Choisir un classeur" />
               </SelectTrigger>
               <SelectContent>
                 {(pokedexes ?? []).map((p) => (
@@ -89,9 +102,7 @@ export function AddToPokedexDialog({ card }: { card: Doc<'cards'> }) {
               </SelectContent>
             </Select>
             {pokedexes !== undefined && pokedexes.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Crée d'abord un pokédex depuis l'accueil.
-              </p>
+              <p className="text-xs text-muted-foreground">Crée d'abord un classeur.</p>
             )}
           </div>
 
@@ -159,7 +170,9 @@ export function AddToPokedexDialog({ card }: { card: Doc<'cards'> }) {
         </div>
 
         <DialogFooter>
-          <Button onClick={handleAdd}>Ajouter à la collection</Button>
+          <Button onClick={handleAdd} className="rounded-full bg-rouge hover:bg-rouge-deep">
+            Ajouter à la collection
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

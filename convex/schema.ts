@@ -60,6 +60,7 @@ export default defineSchema({
   })
     .index("by_tcgdexId", ["tcgdexId"])
     .index("by_set", ["setId"])
+    .index("by_local", ["localId"]) // recherche par numéro de collecteur seul
     .index("by_stale_price", ["lastPriceUpdate"])
     .searchIndex("search_text", {
       searchField: "searchText",

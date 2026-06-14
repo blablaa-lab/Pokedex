@@ -1,10 +1,12 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
 import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react'
 
 import ConvexProvider from '../integrations/convex/provider'
-import { AppHeader } from '../components/AppHeader'
+import { ScanProvider } from '../lib/scan-context'
+import { TopBar } from '../components/TopBar'
+import { LeftRail } from '../components/LeftRail'
+import { BottomNav } from '../components/BottomNav'
+import { ScanModal } from '../components/ScanModal'
 import { SignInForm } from '../components/SignInForm'
 import { Toaster } from '../components/ui/sonner'
 
@@ -14,7 +16,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
       { title: 'PokéDex Scanner' },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
@@ -30,29 +32,29 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <ConvexProvider>
-          <AuthLoading>
-            <div className="grid min-h-screen place-items-center text-muted-foreground">
-              Chargement…
-            </div>
-          </AuthLoading>
-          <Unauthenticated>
-            <SignInForm />
-          </Unauthenticated>
-          <Authenticated>
-            <AppHeader />
-            <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
-          </Authenticated>
+          <ScanProvider>
+            <AuthLoading>
+              <div className="grid min-h-screen place-items-center text-muted-foreground">
+                Chargement…
+              </div>
+            </AuthLoading>
+            <Unauthenticated>
+              <SignInForm />
+            </Unauthenticated>
+            <Authenticated>
+              <LeftRail />
+              <div className="lg:pl-20">
+                <TopBar />
+                <main className="mx-auto max-w-[1500px] px-3 pb-28 pt-3 sm:px-5 lg:pb-10">
+                  {children}
+                </main>
+              </div>
+              <BottomNav />
+              <ScanModal />
+            </Authenticated>
 
-          <Toaster richColors position="top-right" />
-          <TanStackDevtools
-            config={{ position: 'bottom-right' }}
-            plugins={[
-              {
-                name: 'Tanstack Router',
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-            ]}
-          />
+            <Toaster richColors position="top-center" />
+          </ScanProvider>
         </ConvexProvider>
         <Scripts />
       </body>

@@ -59,6 +59,13 @@ export const search = query({
         .query("cards")
         .withIndex("by_set", (q) => q.eq("setId", setId))
         .take(localId ? 600 : max);
+    } else if (localId) {
+      // Recherche par numéro de collecteur seul (chip « Numéro de carte »).
+      cards = await ctx.db
+        .query("cards")
+        .withIndex("by_local", (q) => q.eq("localId", localId))
+        .take(max);
+      return cards;
     } else {
       return []; // aucun critère
     }

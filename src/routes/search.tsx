@@ -1,86 +1,108 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
+import { Search as SearchIcon, Check } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
-import { CardThumb } from '../components/CardThumb'
+import type { Doc } from '../../convex/_generated/dataModel'
+import { CardTile } from '../components/CardTile'
 import { AddToPokedexDialog } from '../components/AddToPokedexDialog'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
 
 export const Route = createFileRoute('/search')({ component: SearchPage })
 
-function SearchPage() {
-  const [text, setText] = useState('')
-  const [setId, setSetId] = useState('')
-  const [localId, setLocalId] = useState('')
+type Mode = 'nom' | 'numero' | 'artiste'
+const MODES: Array<{ id: Mode; label: string }> = [
+  { id: 'nom', label: 'Nom' },
+  { id: 'numero', label: 'Numéro de carte' },
+  { id: 'artiste', label: 'Artiste' },
+]
 
-  const hasCriteria = text.trim() !== '' || setId.trim() !== '' || localId.trim() !== ''
-  const results = useQuery(
-    api.cards.search,
-    hasCriteria
-      ? {
-          text: text.trim() || undefined,
-          setId: setId.trim() || undefined,
-          localId: localId.trim() || undefined,
-        }
-      : 'skip',
-  )
+function SearchPage() {
+  const [q, setQ] = useState('')
+  const [mode, setMode] = useState<Mode>('nom')
+  const [exact, setExact] = useState(false)
+  const [addCard, setAddCard] = useState<Doc<'cards'> | null>(null)
+
+  const term = q.trim()
+  const active = term !== '' && mode !== 'artiste'
+  const args = mode === 'nom' ? { text: term } : mode === 'numero' ? { localId: term } : null
+  const raw = useQuery(api.cards.search, active && args ? { ...args, limit: 80 } : 'skip')
+  const results =
+    raw && exact && mode === 'nom'
+      ? raw.filter(
+          (c) =>
+            c.nameFr?.toLowerCase() === term.toLowerCase() ||
+            c.nameEn?.toLowerCase() === term.toLowerCase(),
+        )
+      : raw
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Recherche</h1>
-        <p className="text-sm text-muted-foreground">
-          Nom FR ou EN (« Dracaufeu » ou « Charizard »), filtre par set et numéro.
+    <div className="space-y-4">
+      {/* Grand champ de recherche */}
+      <div className="relative mx-auto max-w-2xl">
+        <SearchIcon className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-gray" />
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          inputMode={mode === 'numero' ? 'numeric' : 'text'}
+          placeholder={mode === 'numero' ? 'Numéro de collecteur, ex. 25' : 'Rechercher une carte'}
+          className="h-12 w-full rounded-full bg-secondary pl-12 pr-5 text-[15px] outline-none transition placeholder:text-gray focus:bg-muted focus:ring-2 focus:ring-ink/10"
+        />
+      </div>
+
+      {/* Onglets de filtre (texte simple, façon Pinterest) */}
+      <div className="no-scrollbar -mx-3 flex items-center gap-1.5 overflow-x-auto px-3 sm:mx-0 sm:justify-center sm:px-0">
+        {MODES.map((m) => {
+          const on = mode === m.id
+          return (
+            <button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              className={`shrink-0 rounded-full px-3.5 py-2 text-[15px] font-semibold transition ${
+                on ? 'bg-ink text-white' : 'text-ink hover:bg-secondary'
+              }`}
+            >
+              {m.label}
+            </button>
+          )
+        })}
+        <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+        <button
+          onClick={() => setExact((e) => !e)}
+          disabled={mode !== 'nom'}
+          className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-2 text-[15px] font-semibold transition disabled:opacity-40 ${
+            exact && mode === 'nom' ? 'bg-secondary text-ink' : 'text-ink hover:bg-secondary'
+          }`}
+        >
+          {exact && mode === 'nom' && <Check className="size-4" />}
+          Recherche exacte
+        </button>
+      </div>
+
+      {/* Résultats en masonry */}
+      {mode === 'artiste' ? (
+        <p className="mx-auto max-w-md rounded-2xl bg-secondary p-5 text-center text-sm text-muted-foreground">
+          La recherche par artiste arrivera avec l'enrichissement du catalogue
+          (illustrateurs non inclus dans le seed). Les cartes scannées rapportent
+          déjà cette donnée.
         </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="text">Nom (FR ou EN)</Label>
-          <Input
-            id="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Dracaufeu, Charizard…"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="set">Set (id)</Label>
-          <Input
-            id="set"
-            value={setId}
-            onChange={(e) => setSetId(e.target.value)}
-            placeholder="base1, sv03…"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="num">Numéro de collecteur</Label>
-          <Input
-            id="num"
-            value={localId}
-            onChange={(e) => setLocalId(e.target.value)}
-            placeholder="4, 125…"
-          />
-        </div>
-      </div>
-
-      {!hasCriteria ? (
-        <p className="text-muted-foreground">Saisis un critère pour lancer la recherche.</p>
+      ) : !active ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">
+          Saisis un {mode === 'numero' ? 'numéro' : 'nom'} pour lancer la recherche.
+        </p>
       ) : results === undefined ? (
-        <p className="text-muted-foreground">Recherche…</p>
+        <p className="py-16 text-center text-sm text-muted-foreground">Recherche…</p>
       ) : results.length === 0 ? (
-        <p className="text-muted-foreground">Aucun résultat.</p>
+        <p className="py-16 text-center text-sm text-muted-foreground">Aucun résultat.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        <div className="masonry">
           {results.map((card) => (
-            <div key={card._id} className="space-y-2">
-              <CardThumb card={card} />
-              <AddToPokedexDialog card={card} />
-            </div>
+            <CardTile key={card._id} card={card} onAdd={() => setAddCard(card)} />
           ))}
         </div>
       )}
+
+      <AddToPokedexDialog card={addCard} onClose={() => setAddCard(null)} />
     </div>
   )
 }
