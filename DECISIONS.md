@@ -88,9 +88,10 @@ L'API TCGdex expose un bloc `pricing.cardmarket` en **EUR** au niveau racine de 
 - `npm run typecheck` ✅ · `npm test` (smoke convex-test : insert + relecture d'une carte) ✅ · `npm run build` (SSR + client + Nitro) ✅ · `npm run lint` ✅.
 
 ### Déploiement Convex Cloud connecté (2026-06-14)
-- Choix utilisateur : **nouveau projet dédié** `pokedex` (team `werocket-labs`) plutôt que réutiliser le projet existant « Clicc » → séparation propre, aucun risque pour Clicc.
-- Déploiement dev cloud : `upbeat-lark-95` (eu-west-1). Lié via `convex dev --once --configure new` (CLI déjà authentifié).
-- `.env.local` (gitignoré) : `CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`.
+- **Déploiement final : `proficient-salamander-160` (eu-west-1)** — projet `pokedex`, team `guillaume-95309` (compte Blabla Lab).
+- Authentification via **deploy key dev** (`CONVEX_DEPLOY_KEY` dans `.env.local`, gitignoré) : court-circuite le login CLI global. Schéma + fonctions auth poussés, toutes les tables/index créés (tables auth, `cards`, `sets`, `pokedexes`, `cardEntries`, index `search_text`).
+- `.env.local` (gitignoré) : `CONVEX_DEPLOY_KEY`, `CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`.
+- ⚠️ **Erreur corrigée** : un premier `convex dev --configure new` avait créé un projet `pokedex` sur le **mauvais compte** (`werocket-labs`, déploiement `upbeat-lark-95`) car le CLI était logué dessus. Projet à supprimer manuellement par l'utilisateur (suppression projet = session dashboard requise, impossible via token CLI). Le passage par deploy key évite désormais toute dépendance au login global.
 - `convex/_generated/` régénéré contre le schéma autoritaire ; schéma + fonctions auth **poussés et "ready"**.
 - Correctif : `convex/tsconfig.json` → `types: ["node"]` (process.env dans `auth.config.ts`).
 - **Reste pour P3** : initialiser les variables d'env de Convex Auth sur le déploiement (clés JWT / `SITE_URL`) via `npx @convex-dev/auth` avant de câbler le flux inscription/connexion runtime.
