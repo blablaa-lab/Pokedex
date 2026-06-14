@@ -51,45 +51,48 @@ function Chart({ data }: { data: Array<{ at: number; totalEur: number }> }) {
   )
 }
 
-/** Colonne droite des stats : évolution du portefeuille + top 4 cartes. */
-export function PortfolioPanel({
-  history,
+/** Graphe d'évolution du portefeuille (à placer sous le total). */
+export function PortfolioChart({ history }: { history: Array<{ at: number; totalEur: number }> }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Évolution du portefeuille
+      </div>
+      <Chart data={history} />
+    </div>
+  )
+}
+
+/** Top 4 cartes les plus chères — cliquables pour ouvrir le détail. */
+export function TopCards({
   top4,
+  onSelect,
 }: {
-  history: Array<{ at: number; totalEur: number }>
   top4: Array<TopCard>
+  onSelect: (card: Doc<'cards'>) => void
 }) {
   return (
-    <div className="space-y-5 rounded-2xl border border-border bg-card p-4">
-      <div>
-        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Évolution du portefeuille
-        </div>
-        <Chart data={history} />
+    <div>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Top 4 · cartes les plus chères
       </div>
-
-      <div>
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Top 4 · cartes les plus chères
-        </div>
-        {top4.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Pas encore de prix estimés.</p>
-        ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {top4.map(({ card, est }) => (
-              <div key={card._id}>
-                <div className="holo aspect-[63/88] overflow-hidden rounded-lg bg-surface-2">
-                  <CardImage src={card.imageUrl} alt={card.nameFr ?? card.nameEn ?? ''} />
-                </div>
-                <div className="mt-1 truncate text-[11px] font-semibold leading-tight">
-                  {card.nameFr ?? card.nameEn}
-                </div>
-                <div className="text-[11px] font-bold text-rouge">{eur(est)}</div>
+      {top4.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Pas encore de prix estimés.</p>
+      ) : (
+        <div className="grid grid-cols-4 gap-2">
+          {top4.map(({ card, est }) => (
+            <button key={card._id} onClick={() => onSelect(card)} className="group text-left">
+              <div className="holo aspect-[63/88] overflow-hidden rounded-lg bg-surface-2 transition-transform group-hover:-translate-y-0.5">
+                <CardImage src={card.imageUrl} alt={card.nameFr ?? card.nameEn ?? ''} />
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <div className="mt-1 truncate text-[11px] font-semibold leading-tight">
+                {card.nameFr ?? card.nameEn}
+              </div>
+              <div className="text-[11px] font-bold text-rouge">{eur(est)}</div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

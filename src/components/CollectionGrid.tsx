@@ -33,8 +33,14 @@ function groupBySet(items: Array<CollectionItem>): Array<Group> {
 }
 
 /** Grille groupée par collection : bandeau (nom + nb de cartes + valeur) puis
- *  la grille des cartes dessous. */
-export function CollectionGrid({ items }: { items: Array<CollectionItem> }) {
+ *  la grille des cartes dessous. Clic sur une carte → `onSelect`. */
+export function CollectionGrid({
+  items,
+  onSelect,
+}: {
+  items: Array<CollectionItem>
+  onSelect?: (card: Doc<'cards'>) => void
+}) {
   const groups = groupBySet(items)
   if (groups.length === 0) {
     return (
@@ -56,7 +62,13 @@ export function CollectionGrid({ items }: { items: Array<CollectionItem> }) {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {g.items.map(({ entry, card }) => (
-              <CardTile key={entry._id} card={card} quantity={entry.quantity} />
+              <CardTile
+                key={entry._id}
+                card={card}
+                quantity={entry.quantity}
+                actionLabel="Voir"
+                onAdd={onSelect ? () => onSelect(card) : undefined}
+              />
             ))}
           </div>
         </section>

@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { RefreshCw, Sparkles } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { CollectionGrid } from '../components/CollectionGrid'
 import { cardEstimate } from '../components/CardTile'
-import { PortfolioPanel } from '../components/PortfolioPanel'
+import { PortfolioChart, TopCards } from '../components/PortfolioPanel'
 import type { TopCard } from '../components/PortfolioPanel'
+import { AddToPokedexDialog } from '../components/AddToPokedexDialog'
 
 export const Route = createFileRoute('/')({ component: Collection })
 
@@ -30,6 +31,7 @@ function Collection() {
   const pokedexes = useQuery(api.pokedexes.list)
   const [selected, setSelected] = useState<Id<'pokedexes'> | null>(null)
   const [lang, setLang] = useState<Lang>('all')
+  const [selectedCard, setSelectedCard] = useState<Doc<'cards'> | null>(null)
 
   const activeId = selected ?? pokedexes?.[0]?._id ?? null
   const view = useQuery(api.cardEntries.pokedexView, activeId ? { pokedexId: activeId } : 'skip')
@@ -159,9 +161,9 @@ function Collection() {
         ))}
       </div>
 
-      {/* Stats en deux colonnes : infos + portefeuille */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5">
+      {/* Stats en deux colonnes : infos + évolution à gauche, top 4 à droite */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-5">
           <div>
             <p className="text-sm">
               <span className="font-display text-2xl font-extrabold">{stats.count}</span>{' '}
@@ -174,11 +176,14 @@ function Collection() {
               </span>
             </p>
           </div>
+
+          <PortfolioChart history={history} />
+
           {view && view.items.length > 0 && (
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex w-fit items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-semibold transition hover:bg-muted disabled:opacity-50"
+              className="mt-auto flex w-fit items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-semibold transition hover:bg-muted disabled:opacity-50"
             >
               <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Mise à jour…' : 'Rafraîchir les prix'}
@@ -186,14 +191,18 @@ function Collection() {
           )}
         </div>
 
-        <PortfolioPanel history={history} top4={top4} />
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <TopCards top4={top4} onSelect={setSelectedCard} />
+        </div>
       </div>
 
       {view === undefined ? (
         <p className="py-16 text-center text-muted-foreground">Chargement…</p>
       ) : (
-        <CollectionGrid items={items} />
+        <CollectionGrid items={items} onSelect={setSelectedCard} />
       )}
+
+      <AddToPokedexDialog card={selectedCard} onClose={() => setSelectedCard(null)} />
     </div>
   )
 }

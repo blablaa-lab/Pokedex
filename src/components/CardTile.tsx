@@ -18,10 +18,12 @@ export function CardTile({
   card,
   quantity,
   onAdd,
+  actionLabel = 'Ajouter',
 }: {
   card: Doc<'cards'>
   quantity?: number
   onAdd?: () => void
+  actionLabel?: string
 }) {
   const price = cardEstimate(card)
   return (
@@ -42,7 +44,7 @@ export function CardTile({
               }}
               className="scale-90 rounded-full bg-rouge px-5 py-2.5 text-sm font-bold text-white opacity-0 shadow-lg transition duration-200 group-hover:scale-100 group-hover:opacity-100 hover:bg-rouge-deep"
             >
-              Ajouter
+              {actionLabel}
             </button>
           </div>
         )}
