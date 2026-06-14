@@ -78,15 +78,15 @@ export function AddToPokedexDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl sm:max-w-5xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">{label}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-8 sm:grid-cols-[340px_1fr]">
-          {/* Carte à gauche */}
+        <div className="grid gap-8 sm:grid-cols-[430px_1fr]">
+          {/* Carte à gauche — au moins 600px de haut sur desktop */}
           <div className="space-y-3">
-            <div className="holo mx-auto aspect-[63/88] w-56 overflow-hidden rounded-xl bg-surface-2 shadow-md sm:w-full">
+            <div className="holo mx-auto aspect-[63/88] w-56 overflow-hidden rounded-xl bg-surface-2 shadow-md sm:aspect-auto sm:h-[600px] sm:w-full">
               <CardImage src={card.imageUrl} alt={label} />
             </div>
             <div className="rounded-xl bg-secondary p-3 text-center">
