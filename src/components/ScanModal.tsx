@@ -201,8 +201,8 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="scan-overlay fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="scan-card relative w-full max-w-sm overflow-hidden rounded-[28px] bg-gradient-to-b from-[#1c1c1e] to-[#0a0a0b] text-white shadow-2xl ring-1 ring-white/10">
-        <div className="flex items-center justify-between px-5 pt-5">
+      <div className="scan-card relative flex max-h-[94vh] min-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-[28px] bg-gradient-to-b from-[#1c1c1e] to-[#0a0a0b] text-white shadow-2xl ring-1 ring-white/10">
+        <div className="flex shrink-0 items-center justify-between px-5 pt-5">
           <div className="flex items-center gap-2">
             <ScanLine className="size-5 text-rouge" />
             <span className="font-display text-lg font-extrabold">Scanner une carte</span>
@@ -216,9 +216,9 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Cadre carte (ratio Pokémon 63/88) */}
-        <div className="px-5 py-4">
-          <div className="relative mx-auto aspect-[63/88] w-full max-w-[280px] overflow-hidden rounded-2xl bg-black ring-1 ring-white/15">
+        {/* Cadre carte (ratio Pokémon 63/88) — remplit la hauteur dispo */}
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-5 py-4">
+          <div className="relative aspect-[63/88] h-full max-w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/15">
             {phase === 'denied' ? (
               <div className="grid h-full place-items-center px-6 text-center text-sm text-white/80">
                 <div className="space-y-3">
@@ -260,7 +260,7 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Pied : résultats / repli / aide */}
-        <div className="space-y-3 border-t border-white/10 bg-white/[0.03] px-5 py-4">
+        <div className="max-h-[42vh] shrink-0 space-y-3 overflow-y-auto border-t border-white/10 bg-white/[0.03] px-5 py-4">
           {phase === 'denied' && (
             <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-rouge px-4 py-2.5 text-sm font-semibold text-white">
               <Camera className="size-4" /> Importer une photo
