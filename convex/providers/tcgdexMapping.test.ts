@@ -64,7 +64,8 @@ describe("mapCardmarketPrice (TCGdex → EUR)", () => {
     expect(p!.eurTrend).toBe(3.51);
     expect(p!.eurAvg30).toBe(4.04);
     expect(p!.eurLow).toBe(2);
-    expect(p!.updatedAt).toBe(Date.parse("2026-06-13T22:58:40.600Z"));
+    // updatedAt = instant du fetch fourni (pas la date de marché TCGdex).
+    expect(p!.updatedAt).toBe(NOW);
   });
 
   test("null si bloc absent", () => {

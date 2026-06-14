@@ -120,3 +120,14 @@ L'API TCGdex expose un bloc `pricing.cardmarket` en **EUR** au niveau racine de 
 - **⛔ BLOCAGE — clés Convex Auth** : l'auth runtime (inscription/connexion) exige `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL` sur le déploiement. **La deploy key dev n'a PAS le droit de gérer/lire les variables d'env** (`ViewEnvironmentVariables` refusé) → je ne peux pas les poser. **Action user** : `npx convex login` (compte Blabla Lab) puis `npx @convex-dev/auth`. Sans ça, le login échoue à l'exécution.
 - **Validation §10** : le click-through final (s'inscrire → créer 2 pokédex → chercher Charizard/Dracaufeu → ajouter → voir prix + valeur → refresh) est une validation **manuelle** (comme le scan), à faire après les clés auth. Une fois connecté, l'ajout d'une carte déclenche le refresh prix (P6 validé de bout en bout via l'UI).
 - Rappel : supprimer le projet `pokedex` créé par erreur sur `werocket-labs` (dashboard).
+
+---
+
+## §10 « Fonctionnel » — VALIDÉ ✅ (2026-06-14)
+
+- Clés Convex Auth (`JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`) posées sur `proficient-salamander-160` (générées localement au format `@convex-dev/auth`, posées via login admin Blablaa Lab — la deploy key n'a pas le droit env).
+- **Validation E2E réelle** (utilisateur authentifié, contre le cloud) : 8/8 critères §10 verts — inscription/connexion, 2 pokédex isolés, « Charizard »=« Dracaufeu »=base1-4, recherche set+numéro, ajout d'entrée, prix EUR rempli par le déclencheur d'ajout (**valeur totale 687,36 €**), garde refresh <6h respectée.
+- **Bug trouvé en validation live + corrigé** : `prices.updatedAt`/`lastPriceUpdate` doivent être l'**instant du fetch** (et non `cardmarket.updated`, la date de marché TCGdex), sinon une carte juste rafraîchie paraît périmée et les gardes (cron 24h / bouton 6h) ne bornent pas les appels. Corrigé dans `mapCardmarketPrice`.
+- Artefacts de setup auth (`auth-keys.local.json` contenant la clé privée, `auth-env-values.txt`, `setup-auth-keys.sh`, `e2e-validate.mjs`) : gitignorés, locaux. À conserver/supprimer selon besoin (clé privée du déploiement dev).
+
+**Phase A terminée. Phase B (scan) = chantier séparé, validation manuelle (hors boucle autonome).**

@@ -14,7 +14,10 @@
 - [x] **P5 — Fiche + entrées (backend)** : `cardEntries` add/update/remove + dédoublonnage, `pokedexView` (jointure batchée anti-N+1 + valeur totale). Modèle de valeur pur testé. Tests sécurité + valeur.
 - [x] **P6 — Prix (backend)** : `prices.refreshCards` (batché, via cardProvider), 3 déclencheurs câblés (ajout planifié, cron quotidien stale+référencé, bouton `refreshPokedex` garde <6h). Sélection cron + garde testées.
 - [x] **Frontend Phase A** : auth (SignInForm + gating), accueil (CRUD pokédex), recherche bilingue + filtres, dialogue d'ajout (qté/état/langue/variantes), vue pokédex (grille, valeur totale, refresh prix), toasts Sonner. SSR boote (HTTP 200), 4 portes vertes.
-- [ ] ⛔ **Définition de « fonctionnel » §10 — BLOQUÉ sur action user** : poser les clés Convex Auth sur le déploiement (`npx convex login` compte Blabla Lab → `npx @convex-dev/auth`) ; la deploy key n'a pas le droit env. Puis validation manuelle du click-through §10 (inscription/connexion/recherche/ajout/valeur/refresh). Le verdict prix (Itération 0) est consigné.
+- [x] ✅ **Définition de « fonctionnel » §10 — VALIDÉE** contre le cloud, utilisateur authentifié réel (script E2E) : inscription/connexion, 2 pokédex, « Charizard »=« Dracaufeu »=base1-4, recherche set+numéro, ajout, **prix EUR + valeur totale (687,36 €)**, garde refresh <6h. 41 tests unitaires + 8/8 critères §10. Clés auth posées sur `proficient-salamander-160`.
+- [x] Bug corrigé par la validation live : `lastPriceUpdate`/`prices.updatedAt` = instant du fetch (et non la date de marché TCGdex) → gardes cron 24h / bouton 6h correctes.
+
+**→ Boucle Phase A CLÔTURÉE. Phase B (scan) hors boucle autonome — validation manuelle requise (vraies cartes).**
 
 ## Phase B — Scan (HORS boucle autonome, validation manuelle)
 - [ ] Interface `scanCard(image) → candidats` + page de debug. Marqué « à valider manuellement ».

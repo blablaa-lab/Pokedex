@@ -73,16 +73,15 @@ export function mapCardmarketPrice(
     return null;
   }
 
-  const updatedAt = cardmarket.updated
-    ? Date.parse(cardmarket.updated) || now
-    : now;
-
+  // updatedAt = instant du fetch (et NON la date de marché TCGdex) : c'est ce
+  // qui pilote les gardes de fraîcheur (cron > 24h, bouton < 6h) et l'affichage
+  // « tarifs à jour il y a X ». Sinon une carte juste rafraîchie paraît périmée.
   return {
     source: "tcgdex",
     eurTrend: trend ?? undefined,
     eurAvg30: avg30 ?? undefined,
     eurLow: low ?? undefined,
-    updatedAt,
+    updatedAt: now,
   };
 }
 

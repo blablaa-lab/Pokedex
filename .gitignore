@@ -37,3 +37,9 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 *.swp
+
+# Clés auth générées + scripts de setup (sensibles / throwaway, jamais committés)
+auth-keys.local.json
+auth-env-values.txt
+setup-auth-keys.sh
+e2e-validate.mjs
