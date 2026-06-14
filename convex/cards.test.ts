@@ -82,3 +82,34 @@ test("sans critère → liste vide", async () => {
   await seedSample(t);
   expect(await t.query(api.cards.search, {})).toHaveLength(0);
 });
+
+test("scanCandidates : borné par le total /M (sets au cardCount correspondant)", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    await ctx.db.insert("sets", { tcgdexId: "base1", name: "Set de Base", cardCount: 102 });
+    await ctx.db.insert("sets", { tcgdexId: "base2", name: "Jungle", cardCount: 64 });
+    await ctx.db.insert("cards", {
+      tcgdexId: "base1-4",
+      searchText: "Dracaufeu Charizard",
+      localId: "4",
+      setId: "base1",
+    });
+    await ctx.db.insert("cards", {
+      tcgdexId: "base2-4",
+      searchText: "x",
+      localId: "4",
+      setId: "base2",
+    });
+  });
+
+  // « 4/102 » → seul base1-4 (set à 102 cartes).
+  const byTotal = await t.query(api.cards.scanCandidates, { localId: "4", total: 102 });
+  expect(byTotal.map((c) => c.tcgdexId)).toEqual(["base1-4"]);
+
+  // Set explicite → précis.
+  const bySet = await t.query(api.cards.scanCandidates, { localId: "4", setId: "base2" });
+  expect(bySet.map((c) => c.tcgdexId)).toEqual(["base2-4"]);
+
+  // Numéro seul (ni set ni total) → vide (trop ambigu).
+  expect(await t.query(api.cards.scanCandidates, { localId: "4" })).toHaveLength(0);
+});

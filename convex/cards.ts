@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 
 // Lecture du catalogue partagé (`cards`). Pas de filtrage user : le catalogue
 // est commun à tous. La recherche bilingue arrive en P4, la fiche en P5.
@@ -66,5 +67,53 @@ export const search = query({
       cards = cards.filter((c) => c.localId === localId);
     }
     return cards.slice(0, max);
+  },
+});
+
+/**
+ * Candidats pour le SCAN (Phase B) : depuis un numéro de collecteur détecté
+ * par OCR. Borné par le set explicite, ou par le total « /M » (sets au
+ * `cardCount` correspondant) — sinon trop de candidats (un même numéro existe
+ * dans ~190 sets). Renvoie typiquement 1 à 3 cartes à CONFIRMER par l'user.
+ */
+export const scanCandidates = query({
+  args: {
+    localId: v.string(),
+    total: v.optional(v.number()),
+    setId: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { localId, total, setId, limit }) => {
+    const max = Math.min(limit ?? 12, 30);
+
+    const fromSet = async (sid: string) => {
+      const cards = await ctx.db
+        .query("cards")
+        .withIndex("by_set", (q) => q.eq("setId", sid))
+        .collect();
+      return cards.filter((c) => c.localId === localId);
+    };
+
+    if (setId) {
+      return (await fromSet(setId)).slice(0, max);
+    }
+
+    if (total !== undefined) {
+      // Sets dont le nombre de cartes correspond au « /M » scanné.
+      const sets = await ctx.db.query("sets").collect();
+      const matchSetIds = sets
+        .filter((s) => s.cardCount === total)
+        .map((s) => s.tcgdexId);
+      const out: Array<Doc<"cards">> = [];
+      for (const sid of matchSetIds) {
+        out.push(...(await fromSet(sid)));
+        if (out.length >= max) break;
+      }
+      return out.slice(0, max);
+    }
+
+    // Numéro seul sans set ni total → trop ambigu pour borner : on renvoie vide
+    // (l'UI invite à préciser le set).
+    return [];
   },
 });

@@ -17,6 +17,12 @@ export function AppHeader() {
           >
             Recherche
           </Link>
+          <Link
+            to="/scan"
+            className="text-sm text-muted-foreground [&.active]:text-foreground"
+          >
+            Scan
+          </Link>
         </nav>
         <Button variant="ghost" size="sm" onClick={() => void signOut()}>
           Déconnexion

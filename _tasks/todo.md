@@ -20,4 +20,6 @@
 **→ Boucle Phase A CLÔTURÉE. Phase B (scan) hors boucle autonome — validation manuelle requise (vraies cartes).**
 
 ## Phase B — Scan (HORS boucle autonome, validation manuelle)
-- [ ] Interface `scanCard(image) → candidats` + page de debug. Marqué « à valider manuellement ».
+- [x] **Module scaffoldé** : interface `scanCard(image)` (OCR + lookup injectés), OCR Tesseract.js (client, lazy), `parseCollectorNumber` (pur, 5 tests), query `cards.scanCandidates` (bornée par set ou total « /M », testée), page de debug `/scan` (upload + caméra → numéro détecté + texte brut → candidats → confirmation via le dialogue d'ajout). SSR OK, 47 tests, 4 portes vertes.
+- [ ] **À valider MANUELLEMENT** (vraies cartes, reflets holo, éclairage) — non testable en auto.
+- [ ] Restant phase manuelle : réglage OCR (crop bas de carte, whitelist chiffres+« / », upscale), stockage de la photo de scan (`capturedImageId`, Convex file storage — PRD §4.10), repli Google Vision si accuracy insuffisante, pHash (Phase C).
