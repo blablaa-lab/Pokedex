@@ -10,14 +10,6 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 bg-white/92 backdrop-blur-md">
       <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
-        <Link
-          to="/"
-          aria-label="Accueil"
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-rouge font-display text-xl font-extrabold text-white"
-        >
-          P
-        </Link>
-
         <div className="flex h-11 flex-1 items-center rounded-full bg-secondary pl-4 pr-1 transition focus-within:bg-muted">
           <Search className="size-5 shrink-0 text-gray" />
           <Link

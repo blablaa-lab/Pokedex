@@ -12,14 +12,7 @@ export function LeftRail() {
   const { openScan } = useScan()
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col items-center border-r border-border bg-white py-4 lg:flex">
-      <Link
-        to="/"
-        aria-label="Accueil"
-        className="grid size-11 place-items-center rounded-full bg-rouge font-display text-xl font-extrabold text-white"
-      >
-        P
-      </Link>
-      <nav className="mt-6 flex flex-col items-center gap-2">
+      <nav className="mt-2 flex flex-col items-center gap-2">
         <Link to="/" className={link} activeOptions={{ exact: true }} activeProps={activeProps} aria-label="Collection">
           <Home className="size-6" />
         </Link>
