@@ -1,17 +1,43 @@
-# Blablaa — Starter Project
+# PokéDex Scanner
 
-Ce repo est mon starter project personnel, conçu pour initialiser n'importe quel nouveau projet rapidement et avec les bonnes bases.
+Webapp de gestion de collection de cartes Pokémon : comptes utilisateurs, pokédex multiples, recherche FR/EN, prix EUR, et scan de carte (phase ultérieure). Audience francophone.
 
-## Ce qu'il contient
+Specs de référence : [`_docs/prd.md`](_docs/prd.md) (produit) et [`_docs/schema.ts`](_docs/schema.ts) (modèle de données, fait autorité). Journal des décisions : [`DECISIONS.md`](DECISIONS.md).
 
-- **CLAUDE.md** — Directives de workflow pour Claude Code (planification, sous-agents, gestion des tâches)
-- **_tasks/** — Répertoire de suivi des tâches (`todo.md`) et capitalisation des leçons (`lessons.md`)
-- **_docs/** — Documentation du projet à compléter selon les besoins
+## Stack
 
-## Utilisation
+TanStack Start · Convex · Convex Auth (email + mot de passe) · Tailwind v4 + shadcn/ui · Vitest + convex-test.
 
-Cloner ce repo comme point de départ pour un nouveau projet, puis :
+## Démarrage
 
-1. Mettre à jour ce README avec le contexte du nouveau projet
-2. Compléter le CLAUDE.md avec les commandes de build/test/lint une fois le stack choisi
-3. Utiliser `_tasks/todo.md` pour planifier les premières étapes
+```bash
+# 1. Dépendances (cache alternatif : voir note ci-dessous)
+npm install
+
+# 2. Provisionner le déploiement Convex (login requis — crée .env.local,
+#    régénère convex/_generated/, renseigne VITE_CONVEX_URL)
+npx convex dev
+
+# 3. Front (autre terminal)
+npm run dev   # http://localhost:3000
+```
+
+> ℹ️ Si `npm install` échoue sur un `EACCES` du cache (`~/.npm` root-owned),
+> utilise un cache alternatif : `npm install --cache /tmp/npm-cache-pkdx`.
+
+## Scripts
+
+| Commande | Rôle |
+|---|---|
+| `npm run dev` | serveur de dev TanStack Start (port 3000) |
+| `npm run convex:dev` | déploiement Convex en dev (login requis) |
+| `npm test` | tests de logique métier (Vitest + convex-test) |
+| `npm run typecheck` | vérification TypeScript |
+| `npm run lint` / `npm run format` | ESLint / Prettier |
+| `npm run build` | build de production |
+
+## État
+
+- ✅ **Itération 0** — verdict prix : CAS A (TCGdex source unique). Cf. `DECISIONS.md`.
+- ✅ **P1** — scaffold câblé, 4 portes vertes (typecheck/test/build/lint).
+- ⏳ P2–P6 — données & provider, CRUD pokédex, recherche bilingue, fiches/entrées, prix. Cf. `_tasks/todo.md`.

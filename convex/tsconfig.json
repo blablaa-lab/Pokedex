@@ -1,0 +1,28 @@
+{
+  /* This TypeScript project config describes the environment that
+   * Convex functions run in and is used to typecheck them.
+   * You can modify it, but some settings are required to use Convex.
+   */
+  "compilerOptions": {
+    /* These settings are not required by Convex and can be modified. */
+    "allowJs": true,
+    "strict": true,
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    // node : process.env dans auth.config.ts. vite/client : import.meta.glob
+    // dans les *.test.ts (convex-test). Convex ne bundle pas les tests.
+    "types": ["node", "vite/client"],
+
+    /* These compiler options are required by Convex */
+    "target": "ESNext",
+    "lib": ["ES2021", "dom"],
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["./**/*"],
+  "exclude": ["./_generated"]
+}

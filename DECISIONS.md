@@ -1,0 +1,133 @@
+# DECISIONS.md — PokéDex Scanner
+
+Journal des choix non triviaux, inconnues levées et écarts au PRD. Une ligne par décision.
+
+---
+
+## Itération 0 — Verdict prix (PORTE BLOQUANTE) ✅
+
+**Date du sondage : 2026-06-14. Source sondée : API TCGdex v2 (`https://api.tcgdex.net/v2/{lang}/cards/{id}`).**
+
+### VERDICT : **CAS A — prix TCGdex suffisants. `cardProvider` = TCGdex en source unique. Pas de bridge pokemontcg.io.**
+
+### Preuves (échantillon récent + ancien)
+
+L'API TCGdex expose un bloc `pricing.cardmarket` en **EUR** au niveau racine de la carte (et un détail par variante dans `variants_detailed`). Champs disponibles : `avg`, `low`, `trend`, `avg1`, `avg7`, `avg30`, `updated`, `unit:"EUR"`, `idProduct`. Mapping direct vers `schema.ts` :
+
+| schema.ts (`cards.prices`) | champ TCGdex |
+|---|---|
+| `eurTrend` | `pricing.cardmarket.trend` |
+| `eurAvg30` | `pricing.cardmarket.avg30` |
+| `eurLow`   | `pricing.cardmarket.low` |
+| `source`   | `"tcgdex"` |
+| `updatedAt`| `pricing.cardmarket.updated` (→ epoch) |
+
+**Couverture par époque (1 carte par ère, EN) — prix EUR présents et frais (updated 2026-06-13, J-1) :**
+
+| Set / année | Carte | avg EUR | prix ? |
+|---|---|---|---|
+| Base Set 1999 | Charizard | 335.61 | ✅ |
+| Jungle 1999 | Clefable | 25.06 | ✅ |
+| Neo Genesis 2000 | Lugia | 294.12 | ✅ |
+| EX Ruby&Sapphire 2003 | Aggron | 11.06 | ✅ |
+| Diamond&Pearl 2007 | Dialga | 10.61 | ✅ |
+| Black&White 2011 | Snivy | 0.15 | ✅ |
+| XY 2014 | Venusaur EX | 6.78 | ✅ |
+| Sun&Moon 2017 | Caterpie | 0.11 | ✅ |
+| Sword&Shield 2020 | Celebi V | 2.28 | ✅ |
+| Scarlet&Violet 2023 | Charizard ex (sv03-125) | 4.09 | ✅ |
+
+**Taux de couverture sur sets entiers (échantillon 30 cartes/set) :**
+- `base1` (Base Set, 1999) : **30/30** cartes avec prix EUR.
+- `sv03` (Obsidian Flames, 2023) : **30/30** cartes avec prix EUR.
+
+→ Couverture ≈ 100 % de l'ancien au récent. Aucun trou justifiant le bridge.
+
+### Conséquences
+
+- `cardProvider` implémente **une seule source** : TCGdex (identité **et** prix).
+- `sets.ptcgioId` reste **nullable et non peuplé** (colonne conservée pour un éventuel bridge futur, conforme au schéma — pas de script de fuzzy-match à écrire pour l'instant).
+- `refreshPrices` lira `pricing.cardmarket` depuis TCGdex (à construire en P6, après scaffold).
+- Le seed peuple identité uniquement (noms FR+EN, set, localId, image, rareté) ; **les prix ne sont JAMAIS seedés** (PRD §3), remplis paresseusement via `refreshPrices`.
+
+### Faux positif écarté
+
+- `sv01-1` renvoie un **404** (id inexistant — le set Scarlet&Violet de base n'utilise pas ce format d'id) : ce n'était **pas** un trou de prix.
+
+### Notes provider confirmées au sondage
+
+- **id stable inter-langue** : `base1-4` identique en `/fr` et `/en` → pull bilingue par simple double-requête sur le même id.
+- **Noms FR natifs** : `/fr/cards/base1-4` → "Dracaufeu" ; `/en/...` → "Charizard". `searchText = nameFr + " " + nameEn`.
+- **Image FR** dispo (`assets.tcgdex.net/fr/...`), cohérente avec la carte en main (PRD §3).
+- `pricing` est identique sur l'endpoint `/fr` et `/en` → on peut tirer prix + nom FR en une passe FR, et le nom EN en passe EN.
+- API **sans clé**, pas de rate-limit documenté agressif — batching de courtoisie quand même côté `refreshPrices`.
+
+---
+
+## P1 — Scaffold ✅
+
+**Date : 2026-06-14.** Scaffold via `create-start-app` (add-ons `convex` + `shadcn`), puis câblage manuel de Convex Auth + convex-test.
+
+### Versions retenues (relevées sur le registre npm)
+- TanStack Start 1.168 / Router 1.170 — stable.
+- Vite **8** · Tailwind **4** · React 19 — récents mais le scaffold officiel les version-matche (config non écrite à la main).
+- convex 1.41 · `@convex-dev/react-query` 0.1 (intégration Convex côté client).
+- `@convex-dev/auth` **0.0.94** · convex-test **0.0.53** · `@edge-runtime/vm` 5.0.
+
+### Maturité Convex Auth — verdict : **on continue, pas de bascule Clerk**
+- `@convex-dev/auth` reste en **pré-1.0** (0.0.94) et tire une dépendance dépréciée (`lucia@3.2.2`). Risque noté.
+- **Non bloquant pour P1** : le câblage (provider `ConvexAuthProvider`, `convex/auth.ts` provider Password, `convex/http.ts`, `convex/auth.config.ts`) est en place et compile. La validation runtime de l'auth (flux inscription/connexion) se fera en **P3** une fois le déploiement Convex provisionné.
+- Repli Clerk documenté (PRD §9) si l'auth s'avère bloquante en P3 — **ne pas basculer sans accord explicite**.
+
+### Frontière de P1 : le déploiement Convex nécessite le login utilisateur
+- `convex codegen` et `convex dev` exigent un `CONVEX_DEPLOYMENT` → **action manuelle requise** : `npx convex dev` (login Convex), qui provisionne le déploiement, régénère `convex/_generated/` contre le schéma autoritaire, et renseigne `VITE_CONVEX_URL`/`CONVEX_DEPLOYMENT` dans `.env.local`.
+- En attendant, `convex/_generated/` est celui du scaffold (démo) ; aucun code applicatif ne l'importe encore, donc typecheck/build/test restent verts. Il sera régénéré au premier `convex dev`.
+- Le provider Convex est **tolérant à l'absence de `VITE_CONVEX_URL`** (rend les routes sans provider + warning) → pas de crash SSR au build/dev tant que le déploiement n'est pas configuré.
+
+### Portes de sortie P1 — toutes vertes (offline, sans déploiement)
+- `npm run typecheck` ✅ · `npm test` (smoke convex-test : insert + relecture d'une carte) ✅ · `npm run build` (SSR + client + Nitro) ✅ · `npm run lint` ✅.
+
+### Déploiement Convex Cloud connecté (2026-06-14)
+- **Déploiement final : `proficient-salamander-160` (eu-west-1)** — projet `pokedex`, team `guillaume-95309` (compte Blabla Lab).
+- Authentification via **deploy key dev** (`CONVEX_DEPLOY_KEY` dans `.env.local`, gitignoré) : court-circuite le login CLI global. Schéma + fonctions auth poussés, toutes les tables/index créés (tables auth, `cards`, `sets`, `pokedexes`, `cardEntries`, index `search_text`).
+- `.env.local` (gitignoré) : `CONVEX_DEPLOY_KEY`, `CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`.
+- ⚠️ **Erreur corrigée** : un premier `convex dev --configure new` avait créé un projet `pokedex` sur le **mauvais compte** (`werocket-labs`, déploiement `upbeat-lark-95`) car le CLI était logué dessus. Projet à supprimer manuellement par l'utilisateur (suppression projet = session dashboard requise, impossible via token CLI). Le passage par deploy key évite désormais toute dépendance au login global.
+- `convex/_generated/` régénéré contre le schéma autoritaire ; schéma + fonctions auth **poussés et "ready"**.
+- Correctif : `convex/tsconfig.json` → `types: ["node"]` (process.env dans `auth.config.ts`).
+- **Reste pour P3** : initialiser les variables d'env de Convex Auth sur le déploiement (clés JWT / `SITE_URL`) via `npx @convex-dev/auth` avant de câbler le flux inscription/connexion runtime.
+
+### Écarts / nettoyage
+- Démo retirée : `convex/todos.ts` + tables `products`/`todos` du schéma (remplacé par le schéma autoritaire).
+- `vitest.config.ts` dédié (n'hérite pas des plugins de `vite.config.ts`), environnement `edge-runtime` pour convex-test.
+- ESLint ignore `.output/`, `.nitro/`, `dist/`, `convex/_generated/` (fichiers générés/build).
+- Cache npm perso root-owned → installs via `--cache /tmp/npm-cache-pkdx`.
+
+---
+
+## P2 — Données & provider ✅ (2026-06-14)
+
+- **Abstraction `cardProvider`** (PRD §2) : interface stable `CardProvider` (`convex/providers/types.ts`) + impl `TcgdexProvider` (`tcgdex.ts`). Mapping pur isolé (`tcgdexMapping.ts`) → **cœur métier testé hors-ligne** (15 tests : `searchText` bilingue, dérivation `setId`, mapping prix EUR sur fixture réelle, jointure FR+EN).
+- **Seed efficace (~22 appels)** : briefs globaux `/fr/cards` + `/en/cards` (noms FR+EN, 21k+), `/fr/sets` (métadonnées), 19 détails de séries (mapping `set→serie` pour construire les URLs d'images `/{lang}/{serie}/{set}/{localId}/high.webp`). `setId` dérivé de l'id. Évite des milliers d'appels par-carte.
+- **Seed exécuté** sur `proficient-salamander-160` : **192 sets, 23 409 cartes**. Identité uniquement — **prix jamais seedés** (PRD §3). Vérifié : `base1-4` = Dracaufeu/Charizard, `searchText` bilingue, image FR, `prices` absent.
+- **`seed:run` = action PUBLIQUE** (la deploy key dev ne peut pas déclencher d'action interne via le CLI — erreur `RunInternalActions`). Idempotente (no-op si déjà seedé ; `{"force":true}` → reset paginé). ⚠️ **À sécuriser / retirer avant prod**.
+
+---
+
+## Frontend Phase A ✅ + blocage auth runtime (2026-06-14)
+
+- **UI livrée** (TanStack Start + Convex React + shadcn + Sonner) : `SignInForm` (Convex Auth email/mdp), gating `Authenticated/Unauthenticated/AuthLoading` dans `__root`, `AppHeader`, accueil (CRUD pokédex), `search` (recherche bilingue + filtres set/numéro + dialogue d'ajout qté/état/langue/variantes), `pokedex.$pokedexId` (grille, valeur totale, bouton refresh prix, retrait). Toasts Sonner sur les actions.
+- **SSR validé** : `npm run dev` → `GET /` renvoie **HTTP 200**, rend l'état « Chargement… » puis hydrate (formulaire de connexion). Aucun crash. 4 portes vertes.
+- **⛔ BLOCAGE — clés Convex Auth** : l'auth runtime (inscription/connexion) exige `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL` sur le déploiement. **La deploy key dev n'a PAS le droit de gérer/lire les variables d'env** (`ViewEnvironmentVariables` refusé) → je ne peux pas les poser. **Action user** : `npx convex login` (compte Blabla Lab) puis `npx @convex-dev/auth`. Sans ça, le login échoue à l'exécution.
+- **Validation §10** : le click-through final (s'inscrire → créer 2 pokédex → chercher Charizard/Dracaufeu → ajouter → voir prix + valeur → refresh) est une validation **manuelle** (comme le scan), à faire après les clés auth. Une fois connecté, l'ajout d'une carte déclenche le refresh prix (P6 validé de bout en bout via l'UI).
+- Rappel : supprimer le projet `pokedex` créé par erreur sur `werocket-labs` (dashboard).
+
+---
+
+## §10 « Fonctionnel » — VALIDÉ ✅ (2026-06-14)
+
+- Clés Convex Auth (`JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`) posées sur `proficient-salamander-160` (générées localement au format `@convex-dev/auth`, posées via login admin Blablaa Lab — la deploy key n'a pas le droit env).
+- **Validation E2E réelle** (utilisateur authentifié, contre le cloud) : 8/8 critères §10 verts — inscription/connexion, 2 pokédex isolés, « Charizard »=« Dracaufeu »=base1-4, recherche set+numéro, ajout d'entrée, prix EUR rempli par le déclencheur d'ajout (**valeur totale 687,36 €**), garde refresh <6h respectée.
+- **Bug trouvé en validation live + corrigé** : `prices.updatedAt`/`lastPriceUpdate` doivent être l'**instant du fetch** (et non `cardmarket.updated`, la date de marché TCGdex), sinon une carte juste rafraîchie paraît périmée et les gardes (cron 24h / bouton 6h) ne bornent pas les appels. Corrigé dans `mapCardmarketPrice`.
+- Artefacts de setup auth (`auth-keys.local.json` contenant la clé privée, `auth-env-values.txt`, `setup-auth-keys.sh`, `e2e-validate.mjs`) : gitignorés, locaux. À conserver/supprimer selon besoin (clé privée du déploiement dev).
+
+**Phase A terminée. Phase B (scan) = chantier séparé, validation manuelle (hors boucle autonome).**

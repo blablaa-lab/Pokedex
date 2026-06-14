@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Builds / output
+dist/
+dist-ssr/
+build/
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+.wrangler/
+__unconfig*
+
+# Convex
+.convex/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Tests / coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Clés auth générées + scripts de setup (sensibles / throwaway, jamais committés)
+auth-keys.local.json
+auth-env-values.txt
+setup-auth-keys.sh
+e2e-validate.mjs
