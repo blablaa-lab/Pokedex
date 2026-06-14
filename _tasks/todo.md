@@ -9,7 +9,7 @@
 ## Phase A — MVP sans scan (après validation)
 - [x] **P1 — Scaffold** : TanStack Start + Convex + Convex Auth + Tailwind/shadcn + Vitest/convex-test câblés. Maturité Convex Auth vérifiée (pré-1.0, on continue). 4 portes vertes (typecheck/test/build/lint). ⚠️ `npx convex dev` (login) requis pour provisionner le déploiement.
 - [x] **P2 — Données & provider** : `cardProvider` (interface stable + impl TCGdex), mapping pur testé (15 tests). Seed exécuté sur le cloud : **192 sets, 23 409 cartes** (identité FR+EN, `searchText` bilingue, image FR ; prix non seedés). Données vérifiées (base1-4 = Dracaufeu/Charizard).
-- [ ] **P3 — Pokédex CRUD** : multi-pokédex/user + tests de sécurité (isolation par `userId`).
+- [x] **P3 — Pokédex CRUD** : `pokedexes` (list/get/create/rename/remove) filtré par `userId` auth, helper `authz`, cascade suppression entrées. 3 tests de sécurité (isolation user, déconnecté, cascade) + 18 tests verts.
 - [ ] **P4 — Recherche** : index `search_text`, match FR ET EN, filtre set + `localId`. Test « Charizard »=« Dracaufeu ».
 - [ ] **P5 — Fiche + entrées** : ajout/édition (quantité, état, langue, variantes), fiche carte avec prix.
 - [ ] **P6 — Prix** : `refreshPrices` (action), 3 déclencheurs, vue valeur totale, toasts Sonner.
