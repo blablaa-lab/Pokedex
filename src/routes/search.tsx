@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useAction, useQuery } from 'convex/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search as SearchIcon, Camera, Check, ChevronDown, X } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Doc } from '../../convex/_generated/dataModel'
@@ -85,6 +85,24 @@ function SearchPage() {
     }
     return r
   }, [raw, year, setYearOf, exact, term])
+
+  // Enrichissement paresseux des prix : on récupère (et cache) les prix des
+  // résultats visibles qui n'en ont pas encore. Débounce + pas de re-demande.
+  const ensurePrices = useAction(api.prices.ensurePrices)
+  const requestedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!results || results.length === 0) return
+    const missing = results
+      .filter((c) => !c.prices && !requestedRef.current.has(c._id))
+      .slice(0, 30)
+      .map((c) => c._id)
+    if (missing.length === 0) return
+    const t = setTimeout(() => {
+      missing.forEach((id) => requestedRef.current.add(id))
+      void ensurePrices({ cardIds: missing })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [results, ensurePrices])
 
   return (
     <div className="space-y-4">

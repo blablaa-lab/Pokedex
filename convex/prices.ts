@@ -158,3 +158,35 @@ export const refreshPokedex = action({
     return await ctx.runAction(internal.prices.refreshCards, { cardIds });
   },
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enrichissement PARESSEUX des prix pour l'affichage (recherche/grille) :
+// le catalogue n'est jamais seedé avec des prix, on les récupère à la demande
+// pour les cartes visibles SANS prix (borné + caché → la 2e fois c'est gratuit).
+// ─────────────────────────────────────────────────────────────────────────
+export const unpricedAmong = internalQuery({
+  args: { cardIds: v.array(v.id("cards")), limit: v.number() },
+  handler: async (ctx, { cardIds, limit }) => {
+    const out: Array<Id<"cards">> = [];
+    for (const id of cardIds) {
+      if (out.length >= limit) break;
+      const card = await ctx.db.get(id);
+      if (card !== null && card.prices === undefined) out.push(id);
+    }
+    return out;
+  },
+});
+
+export const ensurePrices = action({
+  args: { cardIds: v.array(v.id("cards")) },
+  handler: async (ctx, { cardIds }): Promise<{ refreshed: number }> => {
+    const targets = await ctx.runQuery(internal.prices.unpricedAmong, {
+      cardIds: cardIds.slice(0, 40),
+      limit: 30,
+    });
+    if (targets.length > 0) {
+      await ctx.runAction(internal.prices.refreshCards, { cardIds: targets });
+    }
+    return { refreshed: targets.length };
+  },
+});
