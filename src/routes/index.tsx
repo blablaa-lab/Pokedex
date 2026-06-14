@@ -92,7 +92,7 @@ function Collection() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="space-y-4">
       <h1 className="font-display text-2xl font-extrabold">Mes cartes</h1>
 
       <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 sm:mx-0 sm:px-0">
