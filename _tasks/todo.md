@@ -12,8 +12,9 @@
 - [x] **P3 — Pokédex CRUD** : `pokedexes` (list/get/create/rename/remove) filtré par `userId` auth, helper `authz`, cascade suppression entrées. 3 tests de sécurité (isolation user, déconnecté, cascade) + 18 tests verts.
 - [x] **P4 — Recherche** : `cards.search` sur index `search_text` (FR ET EN), filtre set + numéro `localId`. 4 tests (bilingue, filtre set, numéro, sans critère) + smoke sur corpus réel (23k) OK.
 - [x] **P5 — Fiche + entrées (backend)** : `cardEntries` add/update/remove + dédoublonnage, `pokedexView` (jointure batchée anti-N+1 + valeur totale). Modèle de valeur pur testé. Tests sécurité + valeur.
-- [x] **P6 — Prix (backend)** : `prices.refreshCards` (batché, via cardProvider), 3 déclencheurs câblés (ajout planifié, cron quotidien stale+référencé, bouton `refreshPokedex` garde <6h). Sélection cron + garde testées. ⏳ UI (fiche/vue/toasts Sonner) = partie frontend.
-- [ ] Atteindre la Définition de « fonctionnel » (PRD §10) → rapport, fin de boucle Phase A.
+- [x] **P6 — Prix (backend)** : `prices.refreshCards` (batché, via cardProvider), 3 déclencheurs câblés (ajout planifié, cron quotidien stale+référencé, bouton `refreshPokedex` garde <6h). Sélection cron + garde testées.
+- [x] **Frontend Phase A** : auth (SignInForm + gating), accueil (CRUD pokédex), recherche bilingue + filtres, dialogue d'ajout (qté/état/langue/variantes), vue pokédex (grille, valeur totale, refresh prix), toasts Sonner. SSR boote (HTTP 200), 4 portes vertes.
+- [ ] ⛔ **Définition de « fonctionnel » §10 — BLOQUÉ sur action user** : poser les clés Convex Auth sur le déploiement (`npx convex login` compte Blabla Lab → `npx @convex-dev/auth`) ; la deploy key n'a pas le droit env. Puis validation manuelle du click-through §10 (inscription/connexion/recherche/ajout/valeur/refresh). Le verdict prix (Itération 0) est consigné.
 
 ## Phase B — Scan (HORS boucle autonome, validation manuelle)
 - [ ] Interface `scanCard(image) → candidats` + page de debug. Marqué « à valider manuellement ».

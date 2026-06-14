@@ -110,3 +110,13 @@ L'API TCGdex expose un bloc `pricing.cardmarket` en **EUR** au niveau racine de 
 - **Seed efficace (~22 appels)** : briefs globaux `/fr/cards` + `/en/cards` (noms FR+EN, 21k+), `/fr/sets` (métadonnées), 19 détails de séries (mapping `set→serie` pour construire les URLs d'images `/{lang}/{serie}/{set}/{localId}/high.webp`). `setId` dérivé de l'id. Évite des milliers d'appels par-carte.
 - **Seed exécuté** sur `proficient-salamander-160` : **192 sets, 23 409 cartes**. Identité uniquement — **prix jamais seedés** (PRD §3). Vérifié : `base1-4` = Dracaufeu/Charizard, `searchText` bilingue, image FR, `prices` absent.
 - **`seed:run` = action PUBLIQUE** (la deploy key dev ne peut pas déclencher d'action interne via le CLI — erreur `RunInternalActions`). Idempotente (no-op si déjà seedé ; `{"force":true}` → reset paginé). ⚠️ **À sécuriser / retirer avant prod**.
+
+---
+
+## Frontend Phase A ✅ + blocage auth runtime (2026-06-14)
+
+- **UI livrée** (TanStack Start + Convex React + shadcn + Sonner) : `SignInForm` (Convex Auth email/mdp), gating `Authenticated/Unauthenticated/AuthLoading` dans `__root`, `AppHeader`, accueil (CRUD pokédex), `search` (recherche bilingue + filtres set/numéro + dialogue d'ajout qté/état/langue/variantes), `pokedex.$pokedexId` (grille, valeur totale, bouton refresh prix, retrait). Toasts Sonner sur les actions.
+- **SSR validé** : `npm run dev` → `GET /` renvoie **HTTP 200**, rend l'état « Chargement… » puis hydrate (formulaire de connexion). Aucun crash. 4 portes vertes.
+- **⛔ BLOCAGE — clés Convex Auth** : l'auth runtime (inscription/connexion) exige `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL` sur le déploiement. **La deploy key dev n'a PAS le droit de gérer/lire les variables d'env** (`ViewEnvironmentVariables` refusé) → je ne peux pas les poser. **Action user** : `npx convex login` (compte Blabla Lab) puis `npx @convex-dev/auth`. Sans ça, le login échoue à l'exécution.
+- **Validation §10** : le click-through final (s'inscrire → créer 2 pokédex → chercher Charizard/Dracaufeu → ajouter → voir prix + valeur → refresh) est une validation **manuelle** (comme le scan), à faire après les clés auth. Une fois connecté, l'ajout d'une carte déclenche le refresh prix (P6 validé de bout en bout via l'UI).
+- Rappel : supprimer le projet `pokedex` créé par erreur sur `werocket-labs` (dashboard).
