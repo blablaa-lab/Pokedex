@@ -21,6 +21,7 @@ import type * as prices from "../prices.js";
 import type * as providers_tcgdex from "../providers/tcgdex.js";
 import type * as providers_tcgdexMapping from "../providers/tcgdexMapping.js";
 import type * as providers_types from "../providers/types.js";
+import type * as scan from "../scan.js";
 import type * as seed from "../seed.js";
 
 import type {
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "providers/tcgdex": typeof providers_tcgdex;
   "providers/tcgdexMapping": typeof providers_tcgdexMapping;
   "providers/types": typeof providers_types;
+  scan: typeof scan;
   seed: typeof seed;
 }>;
 

@@ -72,8 +72,9 @@ function ScanPage() {
       const res = await scanCard(file, {
         ocr: tesseractOcr,
         setId: setId.trim() || undefined,
+        // Va chercher dans l'API (action Convex) : candidats + prix automatique.
         lookup: ({ localId, total, setId: sid }) =>
-          convex.query(api.cards.scanCandidates, {
+          convex.action(api.scan.scanLookup, {
             localId,
             total: total ?? undefined,
             setId: sid,

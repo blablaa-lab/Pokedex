@@ -6,6 +6,7 @@ import type {
   ProviderSet,
 } from "./types";
 import {
+  buildSearchText,
   deriveSetId,
   mapCardmarketPrice,
   mergeCatalogCard,
@@ -36,6 +37,16 @@ interface TcgdexSerieDetail {
 }
 
 interface TcgdexFullCard {
+  pricing?: { cardmarket?: Parameters<typeof mapCardmarketPrice>[0] };
+}
+
+interface TcgdexCardDetail {
+  id: string;
+  localId: string;
+  name?: string;
+  rarity?: string;
+  image?: string;
+  set?: { id?: string; name?: string };
   pricing?: { cardmarket?: Parameters<typeof mapCardmarketPrice>[0] };
 }
 
@@ -117,5 +128,39 @@ export class TcgdexProvider implements CardProvider {
       `${BASE}/fr/cards/${tcgdexId}`,
     );
     return mapCardmarketPrice(card.pricing?.cardmarket, Date.now());
+  }
+
+  /**
+   * Carte complète (identité FR+EN + prix) depuis l'API — pour le scan, quand
+   * la carte n'est pas (ou mal) dans le catalogue local. Le détail TCGdex porte
+   * directement l'URL d'image et la rareté.
+   */
+  async fetchCard(
+    tcgdexId: string,
+  ): Promise<{ card: ProviderCard; price: ProviderPrice | null } | null> {
+    const [fr, en] = await Promise.all([
+      fetchJson<TcgdexCardDetail>(`${BASE}/fr/cards/${tcgdexId}`).catch(
+        () => null,
+      ),
+      fetchJson<TcgdexCardDetail>(`${BASE}/en/cards/${tcgdexId}`).catch(
+        () => null,
+      ),
+    ]);
+    const base = fr ?? en;
+    if (base === null) return null;
+
+    const card: ProviderCard = {
+      tcgdexId: base.id,
+      nameFr: fr?.name,
+      nameEn: en?.name,
+      searchText: buildSearchText(fr?.name, en?.name),
+      localId: base.localId,
+      setId: base.set?.id ?? deriveSetId(base.id, base.localId),
+      setName: base.set?.name,
+      rarity: base.rarity,
+      imageUrl: base.image ? `${base.image}/high.webp` : undefined,
+    };
+    const price = mapCardmarketPrice(base.pricing?.cardmarket, Date.now());
+    return { card, price };
   }
 }

@@ -51,4 +51,8 @@ export interface CatalogData {
 export interface CardProvider {
   fetchCatalog: () => Promise<CatalogData>;
   fetchPrice: (tcgdexId: string) => Promise<ProviderPrice | null>;
+  /** Carte complète (identité + prix) depuis l'API — pour le scan. */
+  fetchCard: (
+    tcgdexId: string,
+  ) => Promise<{ card: ProviderCard; price: ProviderPrice | null } | null>;
 }

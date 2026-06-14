@@ -21,5 +21,6 @@
 
 ## Phase B — Scan (HORS boucle autonome, validation manuelle)
 - [x] **Module scaffoldé** : interface `scanCard(image)` (OCR + lookup injectés), OCR Tesseract.js (client, lazy), `parseCollectorNumber` (pur, 5 tests), query `cards.scanCandidates` (bornée par set ou total « /M », testée), page de debug `/scan` (upload + caméra → numéro détecté + texte brut → candidats → confirmation via le dialogue d'ajout). SSR OK, 47 tests, 4 portes vertes.
-- [ ] **À valider MANUELLEMENT** (vraies cartes, reflets holo, éclairage) — non testable en auto.
+- [x] **Partie automatique scan→API** : action `scan.scanLookup` (numéro détecté → candidats catalogue → **enrichissement prix via l'API TCGdex** + repli fetch direct si absent du catalogue, avec mise en cache). `cardProvider.fetchCard` ajouté. 2 tests (provider mocké) + **validé live** (base1-1/ex5-1/bw3-1 avec prix réels). Page `/scan` branchée sur l'action.
+- [ ] **À valider MANUELLEMENT** (vraies cartes, reflets holo, éclairage) — l'OCR n'est pas testable en auto.
 - [ ] Restant phase manuelle : réglage OCR (crop bas de carte, whitelist chiffres+« / », upscale), stockage de la photo de scan (`capturedImageId`, Convex file storage — PRD §4.10), repli Google Vision si accuracy insuffisante, pHash (Phase C).
