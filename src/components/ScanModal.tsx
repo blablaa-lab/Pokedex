@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { useAction, useMutation, useQuery } from 'convex/react'
+import { useAction, useConvex, useMutation, useQuery } from 'convex/react'
 import { toast } from 'sonner'
-import { X, ScanLine, Sparkles, Camera, RotateCcw } from 'lucide-react'
+import { X, ScanLine, Sparkles, Camera, RotateCcw, Loader2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { useScan } from '../lib/scan-context'
-import { createOcrScanner } from '../scan/ocr'
-import type { OcrScanner } from '../scan/ocr'
-import { parseCollectorNumber } from '../scan/parseCollectorNumber'
-import type { DetectedNumber } from '../scan/parseCollectorNumber'
+import {
+  ensureIndex,
+  findNearest,
+  hashImageElement,
+  hashVideoFrame,
+  indexSize,
+} from '../scan/visualMatch'
 import { CardImage } from './CardImage'
 
 type Phase = 'init' | 'scanning' | 'detected' | 'results' | 'denied'
 
+const THRESHOLD = 18 // distance de Hamming max pour une capture automatique
 const eur = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n)
 
@@ -28,24 +32,26 @@ export function ScanModal() {
 }
 
 function ScanExperience({ onClose }: { onClose: () => void }) {
-  const scanLookup = useAction(api.scan.scanLookup)
+  const convex = useConvex()
+  const ensurePrices = useAction(api.prices.ensurePrices)
   const pokedexes = useQuery(api.pokedexes.list)
   const addEntry = useMutation(api.cardEntries.add)
 
   const [phase, setPhase] = useState<Phase>('init')
-  const [detected, setDetected] = useState<DetectedNumber | null>(null)
-  const [candidates, setCandidates] = useState<Array<Doc<'cards'>>>([])
+  const [indexReady, setIndexReady] = useState(false)
+  const [detectedIds, setDetectedIds] = useState<Array<Id<'cards'>>>([])
   const [frozenUrl, setFrozenUrl] = useState<string | null>(null)
   const [session, setSession] = useState(0)
   const [pokedexId, setPokedexId] = useState<string>('')
 
+  const candidates =
+    useQuery(api.cards.byIds, detectedIds.length > 0 ? { ids: detectedIds } : 'skip') ?? []
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const stripRef = useRef<HTMLCanvasElement | null>(null)
-  const workerRef = useRef<OcrScanner | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const busyRef = useRef(false)
-  const lastNumRef = useRef<string | null>(null)
+  const lastBestRef = useRef<{ id: string | null; count: number }>({ id: null, count: 0 })
   const cancelRef = useRef(false)
   const phaseRef = useRef<Phase>('init')
   phaseRef.current = phase
@@ -54,9 +60,7 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
     if (pokedexes && pokedexes.length > 0 && !pokedexId) setPokedexId(pokedexes[0]._id)
   }, [pokedexes, pokedexId])
 
-  // Cycle de vie d'une session de scan (caméra + worker + boucle d'analyse).
   useEffect(() => {
-    // Flag d'annulation via ref : traverse les `await` proprement.
     cancelRef.current = false
 
     function stopCamera() {
@@ -67,14 +71,11 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
       if (intervalRef.current) clearInterval(intervalRef.current)
       intervalRef.current = null
       stopCamera()
-      void workerRef.current?.terminate()
-      workerRef.current = null
     }
 
-    async function detect(parsed: DetectedNumber) {
+    function detect(ids: Array<Id<'cards'>>) {
       if (intervalRef.current) clearInterval(intervalRef.current)
       intervalRef.current = null
-      // Auto-capture : on fige l'image courante (la « photo » prise toute seule).
       const v = videoRef.current
       if (v && v.videoWidth > 0) {
         const cap = document.createElement('canvas')
@@ -84,48 +85,29 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
         setFrozenUrl(cap.toDataURL('image/jpeg', 0.8))
       }
       stopCamera()
-      setDetected(parsed)
-      setPhase('detected')
-      try {
-        const found = await scanLookup({
-          localId: parsed.localId as string,
-          total: parsed.total ?? undefined,
-        })
-        if (!cancelRef.current) {
-          setCandidates(found)
-          setPhase('results')
-        }
-      } catch {
-        if (!cancelRef.current) {
-          toast.error('Recherche impossible — réessaie.')
-          setPhase('results')
-        }
-      }
+      setDetectedIds(ids)
+      void ensurePrices({ cardIds: ids })
+      setPhase('results')
     }
 
-    async function tick() {
+    function tick() {
       if (busyRef.current || phaseRef.current !== 'scanning') return
       const v = videoRef.current
-      const c = stripRef.current
-      const w = workerRef.current
-      if (!v || !c || !w || v.videoWidth === 0) return
+      if (!v || v.videoWidth === 0) return
       busyRef.current = true
       try {
-        // On n'OCR que le bas de la carte (où vit le numéro de collecteur).
-        const sw = v.videoWidth
-        const sh = v.videoHeight
-        const stripH = Math.max(1, Math.floor(sh * 0.34))
-        c.width = sw
-        c.height = stripH
-        c.getContext('2d')?.drawImage(v, 0, sh - stripH, sw, stripH, 0, 0, sw, stripH)
-        const parsed = parseCollectorNumber(await w.recognize(c))
-        if (parsed.localId) {
-          // Stabilité : 2 lectures identiques d'affilée avant capture.
-          if (lastNumRef.current === parsed.localId) await detect(parsed)
-          else lastNumRef.current = parsed.localId
+        const hash = hashVideoFrame(v)
+        if (!hash) return
+        const near = findNearest(hash, 4)
+        if (near.length > 0 && near[0].dist <= THRESHOLD) {
+          const bestId = near[0].id
+          if (lastBestRef.current.id === bestId) lastBestRef.current.count += 1
+          else lastBestRef.current = { id: bestId, count: 1 }
+          // 2 lectures concordantes → capture automatique.
+          if (lastBestRef.current.count >= 2) detect(near.map((n) => n.id))
+        } else {
+          lastBestRef.current = { id: null, count: 0 }
         }
-      } catch {
-        /* image illisible, on continue */
       } finally {
         busyRef.current = false
       }
@@ -133,10 +115,12 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
 
     async function init() {
       setPhase('init')
-      setDetected(null)
-      setCandidates([])
+      setDetectedIds([])
       setFrozenUrl(null)
-      lastNumRef.current = null
+      lastBestRef.current = { id: null, count: 0 }
+      void ensureIndex(convex).then(() => {
+        if (!cancelRef.current) setIndexReady(true)
+      })
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment' },
@@ -150,12 +134,8 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
           videoRef.current.srcObject = stream
           await videoRef.current.play().catch(() => {})
         }
-        workerRef.current = await createOcrScanner()
-        // Le cleanup peut avoir basculé cancelRef pendant l'await ci-dessus.
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (cancelRef.current) return
         setPhase('scanning')
-        intervalRef.current = setInterval(() => void tick(), 1300)
+        intervalRef.current = setInterval(tick, 600)
       } catch {
         if (!cancelRef.current) setPhase('denied')
       }
@@ -166,27 +146,24 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
       cancelRef.current = true
       stopAll()
     }
-  }, [session, scanLookup])
+  }, [session, convex, ensurePrices])
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
-    setFrozenUrl(URL.createObjectURL(f))
+    const url = URL.createObjectURL(f)
+    setFrozenUrl(url)
     setPhase('detected')
-    try {
-      const w = workerRef.current ?? (await createOcrScanner())
-      workerRef.current = w
-      const parsed = parseCollectorNumber(await w.recognize(f))
-      setDetected(parsed)
-      const found = parsed.localId
-        ? await scanLookup({ localId: parsed.localId, total: parsed.total ?? undefined })
-        : []
-      setCandidates(found)
-      setPhase('results')
-    } catch {
-      toast.error('Analyse impossible.')
+    await ensureIndex(convex)
+    const img = new Image()
+    img.onload = () => {
+      const hash = hashImageElement(img)
+      const near = hash ? findNearest(hash, 4) : []
+      setDetectedIds(near.map((n) => n.id))
+      if (near.length > 0) void ensurePrices({ cardIds: near.map((n) => n.id) })
       setPhase('results')
     }
+    img.src = url
   }
 
   async function add(card: Doc<'cards'>) {
@@ -217,7 +194,7 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Cadre carte (ratio Pokémon 63/88) — remplit la hauteur dispo */}
+        {/* Cadre carte (ratio Pokémon 63/88) */}
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-5 py-4">
           <div className="relative aspect-[63/88] h-full max-w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/15">
             {phase === 'denied' ? (
@@ -239,24 +216,19 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
                 <div className="scan-line" />
                 <Corners />
                 <div className="absolute inset-x-0 bottom-3 text-center text-xs font-medium text-white drop-shadow">
-                  {phase === 'init' ? 'Activation de la caméra…' : 'Aligne le numéro · détection auto'}
+                  {!indexReady
+                    ? 'Préparation du scanner…'
+                    : phase === 'init'
+                      ? 'Activation de la caméra…'
+                      : 'Cadre la carte · reconnaissance auto'}
                 </div>
               </>
             )}
             {phase === 'detected' && (
-              <>
-                <div className="detect-flash" />
-                <div className="absolute inset-0 grid place-items-center bg-black/40">
-                  <div className="flex items-center gap-2 rounded-full bg-rouge px-4 py-2 text-sm font-bold text-white">
-                    <Sparkles className="size-4" />
-                    {detected?.localId
-                      ? `N° ${detected.localId}${detected.total ? ` / ${detected.total}` : ''}`
-                      : 'Analyse…'}
-                  </div>
-                </div>
-              </>
+              <div className="absolute inset-0 grid place-items-center bg-black/40">
+                <Loader2 className="size-8 animate-spin text-rouge" />
+              </div>
             )}
-            <canvas ref={stripRef} className="hidden" />
           </div>
         </div>
 
@@ -271,6 +243,9 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
 
           {phase === 'results' && (
             <>
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Sparkles className="size-4 text-rouge" /> Carte reconnue ?
+              </div>
               {pokedexes && pokedexes.length > 0 && (
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-white/60">Ajouter à</span>
@@ -287,10 +262,9 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
                   </select>
                 </div>
               )}
-
               {candidates.length === 0 ? (
                 <p className="text-center text-sm text-white/70">
-                  Aucun candidat. Réessaie en cadrant bien le numéro.
+                  Aucune correspondance. Recadre bien la carte, bon éclairage.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -298,14 +272,16 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
                     const est = estimate(c)
                     return (
                       <li key={c._id} className="flex items-center gap-3 rounded-xl bg-white/5 p-2">
-                        <span className="h-14 w-10 shrink-0 overflow-hidden rounded bg-white/10">
+                        <span className="h-16 w-11 shrink-0 overflow-hidden rounded bg-white/10">
                           <CardImage src={c.imageUrl} alt="" />
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-semibold">{c.nameFr ?? c.nameEn}</div>
                           <div className="text-xs text-white/60">
                             {c.setName ?? c.setId} · #{c.localId}
-                            {est !== null && <span className="ml-1 font-semibold text-white/90">{eur(est)}</span>}
+                            {est !== null && (
+                              <span className="ml-1 font-semibold text-white/90">{eur(est)}</span>
+                            )}
                           </div>
                         </div>
                         <button
@@ -319,7 +295,6 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
                   })}
                 </ul>
               )}
-
               <button
                 onClick={() => setSession((s) => s + 1)}
                 className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-sm font-semibold transition hover:bg-white/10"
@@ -331,7 +306,9 @@ function ScanExperience({ onClose }: { onClose: () => void }) {
 
           {(scanning || phase === 'detected') && (
             <p className="text-center text-xs text-white/50">
-              La capture se déclenche automatiquement — aucun bouton à presser.
+              {indexReady
+                ? `Reconnaissance visuelle sur ${indexSize().toLocaleString('fr-FR')} cartes — capture automatique.`
+                : 'Chargement de la base de reconnaissance…'}
             </p>
           )}
         </div>

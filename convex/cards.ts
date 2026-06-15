@@ -77,6 +77,35 @@ export const search = query({
   },
 });
 
+/** Index des empreintes perceptuelles (id + phash), paginé, pour le matching
+ *  visuel côté client (scan). */
+export const phashIndex = query({
+  args: { cursor: v.union(v.string(), v.null()), numItems: v.number() },
+  handler: async (ctx, { cursor, numItems }) => {
+    const page = await ctx.db.query("cards").paginate({ cursor, numItems });
+    return {
+      items: page.page
+        .filter((c) => c.phash !== undefined)
+        .map((c) => ({ id: c._id, phash: c.phash as string })),
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+/** Cartes complètes par ids (pour afficher les candidats du scan visuel). */
+export const byIds = query({
+  args: { ids: v.array(v.id("cards")) },
+  handler: async (ctx, { ids }) => {
+    const out: Array<Doc<"cards">> = [];
+    for (const id of ids) {
+      const c = await ctx.db.get(id);
+      if (c !== null) out.push(c);
+    }
+    return out;
+  },
+});
+
 /**
  * Candidats pour le SCAN (Phase B) : depuis un numéro de collecteur détecté
  * par OCR. Borné par le set explicite, ou par le total « /M » (sets au
